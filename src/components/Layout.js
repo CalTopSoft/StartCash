@@ -15,7 +15,7 @@ export function createLayout(activePage, pageTitle) {
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
       <div class="sidebar-logo-icon">
-        <img src="/src/assets/icons/logo.png"  alt="logo" />
+        <img src="src/assets/icons/logo.png"  alt="logo" />
       </div>
         <div>
           <div class="sidebar-logo-text">StartCash</div>
