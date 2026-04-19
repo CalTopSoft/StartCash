@@ -23,12 +23,12 @@ export async function renderClients() {
 
 function renderClientsList(container, clients) {
   container.innerHTML = `
-    <div class="page-header">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
       <div>
         <h1 class="page-title">Clientes</h1>
         <p class="page-subtitle">${clients.length} clientes registrados</p>
       </div>
-      <button class="btn btn-primary" id="newClientBtn">${icons.plus} Nuevo cliente</button>
+      <button class="btn btn-primary" id="newClientBtn" style="white-space:nowrap;flex-shrink:0;">${icons.plus} Nuevo cliente</button>
     </div>
 
     <div class="card">
