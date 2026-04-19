@@ -35,7 +35,7 @@ export async function renderWakeUp(onReady) {
       </div>
 
       <div style="font-size:24px;font-weight:700;color:var(--text);margin-bottom:6px;">
-        PrestaCash
+        StartCash
       </div>
 
       <div id="wakeHint" style="font-size:13px;color:var(--text3);margin-bottom:30px;">
