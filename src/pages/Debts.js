@@ -24,15 +24,17 @@ async function renderDebtsPage(container, debts) {
 
   container.innerHTML = `
     <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-      <div>
-        <h1 class="page-title">Mis deudas</h1>
-        <p class="page-subtitle">${debts.length} ${debts.length === 1 ? 'préstamo registrado' : 'préstamos registrados'} a tu nombre</p>
-      </div>
-      <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text3);">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">Mis deudas</h1>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+      <p class="page-subtitle" style="margin:0;">${debts.length} ${debts.length === 1 ? 'préstamo registrado' : 'préstamos registrados'} a tu nombre</p>
+      <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--text3);">
         ${icons.eye} Solo lectura
       </div>
     </div>
+  </div>
+</div>
 
     ${vencidas.length > 0 ? `
       <div class="alert alert-error" style="margin-bottom:16px;">
@@ -43,22 +45,22 @@ async function renderDebtsPage(container, debts) {
 
     <!-- Stats 2x2 -->
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Deuda total</div>
         <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--red);">${formatCurrency(totalDeuda)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">${debts.length} préstamos</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Pendiente</div>
         <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--yellow);">${formatCurrency(totalPendiente)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">Por pagar</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ya pagado</div>
         <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPagado)}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">Total abonado</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Vencidos</div>
         <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${vencidas.length > 0 ? 'var(--red)' : 'var(--green)'};">${vencidas.length}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">${vencidas.length === 0 ? 'Todo al día ✓' : 'Requieren atención'}</div>
