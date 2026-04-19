@@ -314,6 +314,10 @@
   table {
     min-width: 500px !important;
   }
+  
+  .clients-table {
+    min-width: unset !important;
+  }
 
   /* Filtros en línea */
   [style*="display:flex"][style*="gap:8px"] {
@@ -534,4 +538,19 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
+}
+/* ===== CLIENTES RESPONSIVE ===== */
+.col-mobile { display: none; }
+.col-desktop { display: table-cell; }
+
+@media (max-width: 768px) {
+  .col-mobile { display: table-cell !important; width: 100% !important; }
+  .col-desktop { display: none !important; width: 0 !important; padding: 0 !important; }
+
+  .clients-table { table-layout: fixed; width: 100%; }
+
+  .clients-table thead tr th.col-mobile,
+  .clients-table tbody tr td.col-mobile {
+    padding: 10px 12px;
+  }
 }
