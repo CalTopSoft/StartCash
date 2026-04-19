@@ -52,35 +52,35 @@ export async function renderDashboard() {
       ` : ''}
 
       <!-- Stats 2x2 de prestamos -->
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Capital prestado</div>
-          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalLent)}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${loans.length} prestamos</div>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ganancias</div>
-          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalInterest)}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">En intereses</div>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
-          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPaid)}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Pagos recibidos</div>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Créditos activos</div>
-          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${activeLoans.length}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${clients.length} clientes</div>
-        </div>
-      </div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Capital prestado</div>
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalLent)}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px;">${loans.length} prestamos</div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ganancias</div>
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalInterest)}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px;">En intereses</div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPaid)}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px;">Pagos recibidos</div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Créditos activos</div>
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${activeLoans.length}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px;">${clients.length} clientes</div>
+  </div>
+</div>
 
       <!-- ═══ CARD COMBINADA: Mis deudas + Buzón ═══ -->
       ${myDebts.length > 0 ? `
       <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px;border-color:${deudasVencidas.length > 0 ? 'rgba(255,107,107,0.4)' : 'var(--border)'};">
 
         <!-- Mitad superior: resumen de deudas -->
-        <div style="padding:14px;border-bottom:1px solid var(--border);background:var(--surface2);">
+        <div style="padding:14px; border-radius: 10px; border-bottom:1px solid var(--border);background:var(--surface2);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:8px;">
               <div style="width:28px;height:28px;border-radius:var(--radius-sm);background:var(--red-bg);border:1px solid rgba(255,107,107,0.25);display:flex;align-items:center;justify-content:center;">
@@ -156,12 +156,12 @@ ${d.lender?.avatar
           <button class="btn btn-ghost btn-sm" id="goLoans">Ver todos</button>
         </div>
 
-        <div style="display:grid;grid-template-columns:85px 75px 72px 55px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Cliente</div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Total</div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Estado</div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Vence</div>
-        </div>
+<div style="display:grid;grid-template-columns:32px 1fr 70px 72px 50px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;">
+  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;grid-column:1/3;">Cliente</div>
+  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Total</div>
+  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Estado</div>
+  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Vence</div>
+</div>
         <div id="recentLoans"></div>
         <div id="emptyLoans" style="display:none;text-align:center;padding:24px 0;color:var(--text3);font-size:13px;">Sin prestamos registrados</div>
       </div>
@@ -191,9 +191,14 @@ ${d.lender?.avatar
         const overdue = isOverdue(loan.dueDate, loan.status);
         const fecha = formatDate(loan.dueDate).replace(/\s\d{4}$/, '');
         const row = document.createElement('div');
-        row.style.cssText = 'display:grid;grid-template-columns:85px 75px 72px 55px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';
-        row.innerHTML = `
-          <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${loan.clientId?.name || '—'}</div>
+        row.style.cssText = 'display:grid;grid-template-columns:32px 1fr 70px 72px 50px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';
+        const client = loan.clientId;
+        const avatarHtml = client?.avatar
+          ? `<img src="${client.avatar.startsWith('data:') ? client.avatar : `data:image/jpeg;base64,${client.avatar}`}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+          : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;">${(client?.name || '?').slice(0,2).toUpperCase()}</div>`;
+          row.innerHTML = `
+          ${avatarHtml}
+          <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${client?.name || '—'}</div>
           <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;">${formatCurrency(loan.total)}</div>
           <div><span class="${loanStatusClass(loan.status)}" style="font-size:9px;padding:2px 6px;">${loanStatusLabel(loan.status)}</span></div>
           <div style="font-size:11px;color:${overdue ? 'var(--red)' : 'var(--text2)'};white-space:nowrap;">${fecha}</div>
