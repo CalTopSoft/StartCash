@@ -3,7 +3,6 @@ import { authService } from '../services/auth.service.js';
 import { getInitials } from '../utility/helpers.js';
 
 export function createLayout(activePage, pageTitle) {
-  // Siempre leer el usuario fresco desde localStorage en el momento de crear el layout
   const user = authService.getUser();
   const isDark = localStorage.getItem('theme') !== 'light';
 
@@ -14,9 +13,9 @@ export function createLayout(activePage, pageTitle) {
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-        <img src="src/assets/icons/logo.png"  alt="logo" />
-      </div>
+        <div class="sidebar-logo-icon">
+          <img src="src/assets/icons/logo.png" alt="logo" />
+        </div>
         <div>
           <div class="sidebar-logo-text">StartCash</div>
           <div class="sidebar-logo-sub">v1.0</div>
@@ -38,7 +37,10 @@ export function createLayout(activePage, pageTitle) {
         <a class="nav-item ${activePage === 'payments' ? 'active' : ''}" data-page="payments" href="#">
           ${icons.payments} Pagos
         </a>
-        <span class="nav-section-label">Cuenta</span>
+        <span class="nav-section-label">Mi cuenta</span>
+        <a class="nav-item ${activePage === 'debts' ? 'active' : ''}" data-page="debts" href="#">
+          ${icons.debts} Mis deudas
+        </a>
         <a class="nav-item ${activePage === 'profile' ? 'active' : ''}" data-page="profile" href="#">
           ${icons.user} Mi perfil
         </a>
@@ -111,8 +113,6 @@ export function createLayout(activePage, pageTitle) {
     };
   });
 
-  // Escuchar evento personalizado para actualizar el sidebar sin recargar página
-  // Se dispara desde cualquier lugar con: window.dispatchEvent(new CustomEvent('userUpdated'))
   const handleUserUpdated = () => {
     const fresh = authService.getUser();
     const userInfoEl = document.getElementById('sidebarUserInfo');
@@ -123,7 +123,6 @@ export function createLayout(activePage, pageTitle) {
 
   window.addEventListener('userUpdated', handleUserUpdated);
 
-  // Limpiar listener cuando el layout se desmonte (cuando se recrea la página)
   const observer = new MutationObserver(() => {
     if (!document.body.contains(layout)) {
       window.removeEventListener('userUpdated', handleUserUpdated);
@@ -135,7 +134,6 @@ export function createLayout(activePage, pageTitle) {
   return layout.querySelector('#pageContent');
 }
 
-// Función auxiliar que genera el HTML del usuario en el sidebar
 function renderSidebarUser(user) {
   const avatarHTML = user?.avatar
     ? `<img src="${user.avatar.startsWith('data:') ? user.avatar : `data:image/jpeg;base64,${user.avatar}`}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`

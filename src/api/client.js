@@ -1,4 +1,5 @@
-const BASE_URL = 'https://startcashback.onrender.com/api';
+const BASE_URL = 'http://localhost:3000/api';
+/*const BASE_URL = 'https://startcashback.onrender.com/api';*/
 
 function getToken() {
   return localStorage.getItem('token');

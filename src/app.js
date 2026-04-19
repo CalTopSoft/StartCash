@@ -6,6 +6,7 @@ import { renderClients } from './pages/Clients.js';
 import { renderLoans } from './pages/Loans.js';
 import { renderPayments } from './pages/Payments.js';
 import { renderProfile } from './pages/Profile.js';
+import { renderDebts } from './pages/Debts.js';
 import { startKeepAlive } from './utility/keepAlive.js';
 
 function applyTheme() {
@@ -31,17 +32,17 @@ function navigate() {
   const page = getPage();
   switch (page) {
     case 'dashboard': renderDashboard(); break;
-    case 'clients': renderClients(); break;
-    case 'loans': renderLoans(); break;
-    case 'payments': renderPayments(); break;
-    case 'profile': renderProfile(); break;
+    case 'clients':   renderClients();   break;
+    case 'loans':     renderLoans();     break;
+    case 'payments':  renderPayments();  break;
+    case 'profile':   renderProfile();   break;
+    case 'debts':     renderDebts();     break;
     default: renderDashboard();
   }
 }
 
 applyTheme();
 
-// Pantalla de wake-up primero, luego navegar
 renderWakeUp(() => {
   if (authService.isAuthenticated()) startKeepAlive();
   navigate();
