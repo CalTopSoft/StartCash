@@ -39,59 +39,48 @@ async function renderPaymentsPage(container, loans) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const totalThisMonth = thisMonth.reduce((s, p) => s + p.amount, 0);
+
   container.innerHTML = `
-    <div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
       <div>
-        <h1 class="page-title">Historial de pagos</h1>
+        <h1 class="page-title">Pagos</h1>
         <p class="page-subtitle">${allPaymentsData.length} pagos en total</p>
       </div>
     </div>
 
-    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px;">
-      <div class="stat-card">
-        <div class="stat-label">Total cobrado</div>
-        <div class="stat-value" style="font-size:24px;">${formatCurrency(totalAmount)}</div>
-        <div class="stat-sub">En todos los prestamos</div>
+    <!-- Stats compactas -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalAmount)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Todos los prestamos</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Pagos registrados</div>
-        <div class="stat-value" style="font-size:24px;">${allPaymentsData.length}</div>
-        <div class="stat-sub">Total de transacciones</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Este mes</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalThisMonth)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${thisMonth.length} pagos en ${now.toLocaleString('es', {month:'long'})}</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Prestamos con pago</div>
-        <div class="stat-value" style="font-size:24px;">${loans.filter(l => l.amountPaid > 0).length}</div>
-        <div class="stat-sub">De ${loans.length} total</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Transacciones</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${allPaymentsData.length}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Total registradas</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Cobrado este mes</div>
-        <div class="stat-value" style="font-size:24px;">${formatCurrency(totalThisMonth)}</div>
-        <div class="stat-sub">${thisMonth.length} pagos en ${now.toLocaleString('es', {month:'long'})}</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Con pagos</div>
+        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${loans.filter(l => l.amountPaid > 0).length}<span style="font-size:11px;color:var(--text3);font-weight:400;"> / ${loans.length}</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Prestamos activos</div>
       </div>
     </div>
 
-    <div class="card">
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
-        <div class="search-bar" style="max-width:100%;">
-          ${icons.search}
-          <input type="text" placeholder="Buscar por cliente..." id="paySearch"/>
-        </div>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Cliente</th>
-              <th>Prestamo</th>
-              <th>Monto</th>
-              <th>Estado prestamo</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="paymentsBody"></tbody>
-        </table>
-      </div>
+    <!-- Buscador -->
+    <div class="search-bar" style="margin-bottom:14px;max-width:100%;">
+      ${icons.search}
+      <input type="text" placeholder="Buscar por cliente..." id="paySearch"/>
+    </div>
+
+    <!-- Lista móvil -->
+    <div class="card" style="padding:14px;">
+      <div id="paymentsList"></div>
       <div id="emptyPays" class="empty-state" style="display:none;">
         <div class="empty-state-icon">${icons.payments}</div>
         <div class="empty-state-title">Sin pagos registrados</div>
@@ -100,30 +89,40 @@ async function renderPaymentsPage(container, loans) {
     </div>
   `;
 
-  const tbody = container.querySelector('#paymentsBody');
+  const listEl = container.querySelector('#paymentsList');
   const emptyEl = container.querySelector('#emptyPays');
 
   function renderRows(data) {
-    tbody.innerHTML = '';
+    listEl.innerHTML = '';
     if (!data.length) { emptyEl.style.display = 'block'; return; }
     emptyEl.style.display = 'none';
 
+    // Header
+    const header = document.createElement('div');
+header.style.cssText = 'display:grid;grid-template-columns:minmax(70px,1fr) minmax(80px,1fr) minmax(42px,80px) 32px 36px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;';
+    header.innerHTML = `
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Cliente</div>
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Monto</div>
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Fecha</div>
+<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;text-align:center;">Ver</div>
+<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;text-align:center;padding-right:4px;">Borrar</div>    `;
+    listEl.appendChild(header);
+
     data.forEach(p => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="color:var(--text2);font-size:13px;">${formatDate(p.date)}</td>
-        <td class="td-primary">${p.loan?.clientId?.name || '—'}</td>
-        <td class="td-mono" style="font-size:13px;color:var(--text3);">${formatCurrency(p.loan?.total || 0)}</td>
-        <td class="td-mono" style="color:var(--green);font-weight:700;">${formatCurrency(p.amount)}</td>
-        <td><span class="${loanStatusClass(p.loan?.status)}">${loanStatusLabel(p.loan?.status)}</span></td>
-        <td>
-          <div class="td-actions">
-            <button class="btn btn-ghost btn-icon btn-sm" data-view="${p.loan?._id}" title="Ver prestamo">${icons.eye}</button>
-            <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red);" data-delete="${p._id}" data-loan="${p.loan?._id}" title="Eliminar pago">${icons.trash}</button>
-          </div>
-        </td>
+      const fecha = formatDate(p.date).replace(/\s\d{4}$/, '');
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:minmax(70px,1fr) minmax(80px,1fr) minmax(42px,80px) 32px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';      
+      row.innerHTML = `
+        <div style="min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.loan?.clientId?.name || '—'}</div>
+          <span class="${loanStatusClass(p.loan?.status)}" style="font-size:9px;padding:2px 6px;">${loanStatusLabel(p.loan?.status)}</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green);white-space:nowrap;">${formatCurrency(p.amount)}</div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;">${fecha}</div>
+<button style="width:26px;height:26px;background:none;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);" data-view="${p.loan?._id}">${icons.eye}</button>
+<button style="width:26px;height:26px;background:var(--red-bg);border:1px solid rgba(255,107,107,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--red);border-radius:var(--radius-sm);margin:0 auto;" data-delete="${p._id}" data-loan="${p.loan?._id}">${icons.trash}</button>
       `;
-      tbody.appendChild(tr);
+      listEl.appendChild(row);
     });
   }
 
@@ -136,17 +135,14 @@ async function renderPaymentsPage(container, loans) {
     renderRows(filtered);
   }, 250);
 
-  tbody.addEventListener('click', async (e) => {
+  listEl.addEventListener('click', async (e) => {
     const viewBtn = e.target.closest('[data-view]');
     const deleteBtn = e.target.closest('[data-delete]');
 
-    if (viewBtn) {
-      renderLoanDetail(viewBtn.dataset.view);
-    }
+    if (viewBtn) renderLoanDetail(viewBtn.dataset.view);
 
     if (deleteBtn) {
       const paymentId = deleteBtn.dataset.delete;
-      const loanId = deleteBtn.dataset.loan;
       confirmDialog('¿Eliminar este pago? El saldo del prestamo sera revertido.', async () => {
         try {
           await paymentService.delete(paymentId);
