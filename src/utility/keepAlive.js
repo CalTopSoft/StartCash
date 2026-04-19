@@ -1,5 +1,5 @@
-const PING_URL = 'http://localhost:3000/api/health';
-/*const PING_URL = 'https://startcashback.onrender.com/api/health'; */
+/*const PING_URL = 'http://localhost:3000/api/health'; */
+const PING_URL = 'https://startcashback.onrender.com/api/health';
 
 
 const INTERVAL_MS = 2 * 60 * 1000; // 4 minutos
