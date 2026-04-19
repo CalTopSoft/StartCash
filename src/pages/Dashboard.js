@@ -12,14 +12,14 @@ export async function renderDashboard() {
   try {
     const [loans, clients] = await Promise.all([loanService.list(), clientService.list()]);
 
-    const activeLoans  = loans.filter(l => l.status !== 'PAID');
-    const totalLent    = loans.reduce((s, l) => s + l.amount, 0);
-    const totalInterest= loans.reduce((s, l) => s + l.interest, 0);
-    const totalPaid    = loans.reduce((s, l) => s + l.amountPaid, 0);
-    const overdueLoans = loans.filter(l => isOverdue(l.dueDate, l.status));
+    const activeLoans   = loans.filter(l => l.status !== 'PAID');
+    const totalLent     = loans.reduce((s, l) => s + l.amount, 0);
+    const totalInterest = loans.reduce((s, l) => s + l.interest, 0);
+    const totalPaid     = loans.reduce((s, l) => s + l.amountPaid, 0);
+    const overdueLoans  = loans.filter(l => isOverdue(l.dueDate, l.status));
 
     container.innerHTML = `
-      <div class="page-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
         <div>
           <h1 class="page-title">Panel de control</h1>
           <p class="page-subtitle">Resumen general de tu cartera</p>
@@ -27,110 +27,114 @@ export async function renderDashboard() {
       </div>
 
       ${overdueLoans.length > 0 ? `
-        <div class="alert alert-error" style="margin-bottom:20px;">
+        <div class="alert alert-error" style="margin-bottom:16px;">
           ${icons.alert}
           <div><strong>${overdueLoans.length} prestamo(s) vencido(s).</strong> Revisa tu lista de prestamos.</div>
         </div>
       ` : ''}
 
-      <!-- Stats 2x2 siempre -->
-      <div class="dash-stats">
-        <div class="dash-stat-card">
-          <div class="dash-stat-label">Capital prestado</div>
-          <div class="dash-stat-value">${formatCurrency(totalLent)}</div>
-          <div class="dash-stat-sub">${loans.length} prestamos</div>
+      <!-- Stats 2x2 -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Capital prestado</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalLent)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${loans.length} prestamos</div>
         </div>
-        <div class="dash-stat-card">
-          <div class="dash-stat-label">Ganancias</div>
-          <div class="dash-stat-value">${formatCurrency(totalInterest)}</div>
-          <div class="dash-stat-sub">En intereses</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ganancias</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalInterest)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">En intereses</div>
         </div>
-        <div class="dash-stat-card">
-          <div class="dash-stat-label">Total cobrado</div>
-          <div class="dash-stat-value">${formatCurrency(totalPaid)}</div>
-          <div class="dash-stat-sub">Pagos recibidos</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPaid)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Pagos recibidos</div>
         </div>
-        <div class="dash-stat-card">
-          <div class="dash-stat-label">Creditos activos</div>
-          <div class="dash-stat-value">${activeLoans.length}</div>
-          <div class="dash-stat-sub">${clients.length} clientes</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Creditos activos</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${activeLoans.length}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${clients.length} clientes</div>
         </div>
       </div>
 
-      <!-- Tablas -->
-      <div class="dash-grid">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Prestamos recientes</div>
-              <div class="card-subtitle">Ultimos 5 registros</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" id="goLoans">Ver todos</button>
+      <!-- Prestamos recientes -->
+      <div class="card" style="padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);">Prestamos recientes</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Ultimos 5 registros</div>
           </div>
-          <div class="dash-table-wrap">
-            <table class="dash-table">
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Vence</th>
-                </tr>
-              </thead>
-              <tbody id="recentLoans"></tbody>
-            </table>
-          </div>
+          <button class="btn btn-ghost btn-sm" id="goLoans">Ver todos</button>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Clientes recientes</div>
-              <div class="card-subtitle">Ultimos 5 registros</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" id="goClients">Ver todos</button>
-          </div>
-          <div id="clientList"></div>
+        <!-- Header tabla -->
+        <div style="display:grid;grid-template-columns:85px 75px 72px 55px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Cliente</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Total</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Estado</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Vence</div>
         </div>
+        <div id="recentLoans"></div>
+        <div id="emptyLoans" style="display:none;text-align:center;padding:24px 0;color:var(--text3);font-size:13px;">Sin prestamos registrados</div>
+      </div>
+
+      <!-- Clientes recientes -->
+      <div class="card" style="padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);">Clientes recientes</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Ultimos 5 registros</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="goClients">Ver todos</button>
+        </div>
+        <div id="clientList"></div>
+        <div id="emptyClients" style="display:none;text-align:center;padding:24px 0;color:var(--text3);font-size:13px;">Sin clientes registrados</div>
       </div>
     `;
 
     // Préstamos recientes
-    const recentLoans = container.querySelector('#recentLoans');
+    const recentLoansEl = container.querySelector('#recentLoans');
+    const emptyLoansEl  = container.querySelector('#emptyLoans');
+
     if (!loans.length) {
-      recentLoans.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px 0;">Sin prestamos registrados</td></tr>`;
+      emptyLoansEl.style.display = 'block';
     } else {
       loans.slice(0, 5).forEach(loan => {
         const overdue = isOverdue(loan.dueDate, loan.status);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="td-primary" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${loan.clientId?.name || '—'}</td>
-          <td class="td-mono">${formatCurrency(loan.total)}</td>
-          <td><span class="${loanStatusClass(loan.status)}">${loanStatusLabel(loan.status)}</span></td>
-          <td style="${overdue ? 'color:var(--red)' : 'color:var(--text2)'};font-size:13px;">${formatDate(loan.dueDate)}</td>
+        const fecha = formatDate(loan.dueDate).replace(/\s\d{4}$/, '');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:grid;grid-template-columns:85px 75px 72px 55px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';
+        row.innerHTML = `
+          <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${loan.clientId?.name || '—'}</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;">${formatCurrency(loan.total)}</div>
+          <div><span class="${loanStatusClass(loan.status)}" style="font-size:9px;padding:2px 6px;">${loanStatusLabel(loan.status)}</span></div>
+          <div style="font-size:11px;color:${overdue ? 'var(--red)' : 'var(--text2)'};white-space:nowrap;">${fecha}</div>
         `;
-        recentLoans.appendChild(tr);
+        recentLoansEl.appendChild(row);
       });
     }
 
     // Clientes recientes
-    const clientList = container.querySelector('#clientList');
+    const clientListEl  = container.querySelector('#clientList');
+    const emptyClientsEl = container.querySelector('#emptyClients');
+
     if (!clients.length) {
-      clientList.innerHTML = `<div class="empty-state"><div class="empty-state-title">Sin clientes</div></div>`;
+      emptyClientsEl.style.display = 'block';
     } else {
       clients.slice(0, 5).forEach(c => {
         const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);';
+        item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);';
         item.innerHTML = `
-${c.avatar 
-  ? `<img src="${c.avatar.startsWith('data:') ? c.avatar : `data:image/jpeg;base64,${c.avatar}`}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
-  : `<div class="user-avatar" style="font-size:12px;flex-shrink:0;">${c.name.slice(0,2).toUpperCase()}</div>`
-}          <div style="flex:1;min-width:0;">
-            <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
-            <div style="font-size:12px;color:var(--text3);margin-top:1px;">${c.email || c.phone || 'Sin contacto'}</div>
+          ${c.avatar
+            ? `<img src="${c.avatar.startsWith('data:') ? c.avatar : `data:image/jpeg;base64,${c.avatar}`}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+            : `<div class="user-avatar" style="font-size:12px;flex-shrink:0;">${c.name.slice(0,2).toUpperCase()}</div>`
+          }
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:1px;">${c.email || c.phone || 'Sin contacto'}</div>
           </div>
         `;
-        clientList.appendChild(item);
+        clientListEl.appendChild(item);
       });
     }
 
