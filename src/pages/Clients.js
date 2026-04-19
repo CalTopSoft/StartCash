@@ -37,18 +37,26 @@ function renderClientsList(container, clients) {
           ${icons.search}
           <input type="text" placeholder="Buscar por nombre, correo o telefono..." id="clientSearch"/>
         </div>
-      </div>
+        </div>
       <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Correo</th>
-              <th>Telefono</th>
-              <th>Direccion</th>
-              <th></th>
-            </tr>
-          </thead>
+        <table class="clients-table">
+      <thead>
+        <tr>
+          <th class="col-desktop">Nombre</th>
+          <th class="col-desktop">Correo</th>
+          <th class="col-desktop">Telefono</th>
+          <th class="col-desktop">Direccion</th>
+          <th class="col-desktop">Editar</th>
+          <th class="col-desktop">Borrar</th>
+          <th class="col-mobile" style="width:100%;">
+            <div style="display:flex;align-items:center;">
+              <span style="flex:1;">Clientes</span>
+              <span style="width:60px;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text3);">EDITAR</span>
+              <span style="width:60px;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text3);">BORRAR</span>
+            </div>
+          </th>
+        </tr>
+      </thead>
           <tbody id="clientsBody"></tbody>
         </table>
       </div>
@@ -72,24 +80,41 @@ function renderClientsList(container, clients) {
     }
     emptyState.style.display = 'none';
     data.forEach(client => {
+      const shortName = client.name.length > 10 ? client.name.slice(0, 10) + '…' : client.name;
+      const avatarHTML = client.avatar
+        ? `<img src="${client.avatar.startsWith('data:') ? client.avatar : `data:image/jpeg;base64,${client.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+        : `<div class="user-avatar" style="width:32px;height:32px;font-size:12px;">${client.name.slice(0,2).toUpperCase()}</div>`;
+    
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>
+        <!-- DESKTOP: tabla normal -->
+        <td class="col-desktop">
           <div style="display:flex;align-items:center;gap:10px;">
-            ${client.avatar
-              ? `<img src="${client.avatar.startsWith('data:') ? client.avatar : `data:image/jpeg;base64,${client.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
-              : `<div class="user-avatar" style="width:32px;height:32px;font-size:12px;">${client.name.slice(0,2).toUpperCase()}</div>`
-            }
+            ${avatarHTML}
             <span class="td-primary">${client.name}</span>
           </div>
         </td>
-        <td>${client.email || '—'}</td>
-        <td>${client.phone || '—'}</td>
-        <td>${client.address || '—'}</td>
-        <td>
-          <div class="td-actions">
-            <button class="btn btn-ghost btn-icon" data-action="edit" data-id="${client._id}" title="Editar">${icons.edit}</button>
-            <button class="btn btn-ghost btn-icon" style="color:var(--red);" data-action="delete" data-id="${client._id}" title="Eliminar">${icons.trash}</button>
+        <td class="col-desktop">${client.email || '—'}</td>
+        <td class="col-desktop">${client.phone || '—'}</td>
+        <td class="col-desktop">${client.address || '—'}</td>
+        <td class="col-desktop" style="text-align:center;">
+          <button class="btn btn-ghost btn-icon" data-action="edit" data-id="${client._id}" title="Editar">${icons.edit}</button>
+        </td>
+        <td class="col-desktop" style="text-align:center;">
+          <button class="btn btn-ghost btn-icon" style="color:var(--red);" data-action="delete" data-id="${client._id}" title="Eliminar">${icons.trash}</button>
+        </td>
+    
+        <!-- MOBILE: fila única con todo -->
+        <td class="col-mobile" colspan="5">
+          <div style="display:flex;align-items:center;">
+            ${avatarHTML}
+            <span class="td-primary" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:10px;">${shortName}</span>
+        <button data-action="edit" data-id="${client._id}" style="width:60px;height:34px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);transition:background 200ms;">
+          ${icons.edit}
+        </button>
+        <button data-action="delete" data-id="${client._id}" style="width:60px;height:34px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--red);border-radius:var(--radius-sm);transition:background 200ms;">
+          ${icons.trash}
+        </button>
           </div>
         </td>
       `;
@@ -145,136 +170,11 @@ function clientModal(client, onSave) {
 
   const content = document.createElement('div');
   content.className = 'form-grid';
-  content.style.gap = '0';
-
-  // ══════════════════════════════════════════
-  // MODO 1: Agregar por ID (solo en nuevo)
-  // ══════════════════════════════════════════
-  if (!isEdit) {
-    const modeA = document.createElement('div');
-    modeA.innerHTML = `
-      <div style="margin-bottom:16px;">
-        <!-- Encabezado modo 1 -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <span style="font-size:11px;font-weight:700;color:#fff;">1</span>
-          </div>
-          <span style="font-size:13px;font-weight:600;color:var(--text);">Agregar usuario con cuenta</span>
-        </div>
-
-        <div style="padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);">
-          <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;">
-            Si tu cliente ya tiene una cuenta, ingresa su ID público de 6 dígitos para cargarlo automáticamente.
-          </p>
-          <div style="display:flex;gap:8px;">
-            <input id="publicIdInput" class="input-field" placeholder="Ej: 482910" maxlength="6"
-              style="font-family:var(--mono);letter-spacing:0.12em;font-size:17px;font-weight:600;text-align:center;"/>
-            <button type="button" class="btn btn-secondary btn-sm" id="lookupBtn" style="white-space:nowrap;flex-shrink:0;">
-              ${icons.search} Buscar
-            </button>
-          </div>
-          <div id="lookupResult" style="margin-top:10px;display:none;"></div>
-        </div>
-      </div>
-
-      <!-- Divisor con "o" -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <span style="font-size:11px;font-weight:700;color:#fff;">1</span>
-          </div>
-          <span style="font-size:13px;font-weight:600;color:var(--text);">Crear cliente manualmente</span>
-        </div>
-
-      </div>
-    `;
-    content.appendChild(modeA);
-
-    // Lógica búsqueda por ID — closeRef se llena después
-    let closeRef = null;
-    let linkedPublicId = null;
-
-    modeA.querySelector('#lookupBtn').onclick = async () => {
-      const pid = document.getElementById('publicIdInput').value.trim();
-      const resultEl = modeA.querySelector('#lookupResult');
-
-      if (!/^\d{6}$/.test(pid)) {
-        resultEl.style.display = 'block';
-        resultEl.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--red-bg);border-radius:var(--radius-sm);">
-            <svg width="14" height="14" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
-            <span style="color:var(--red);font-size:13px;">Ingresa exactamente 6 dígitos</span>
-          </div>`;
-        return;
-      }
-
-      const btn = modeA.querySelector('#lookupBtn');
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner spinner-dark"></span>`;
-
-      try {
-        const data = await clientService.lookupByPublicId(pid);
-        linkedPublicId = pid;
-
-        const avatarHTML = data.avatar
-          ? `<img src="${data.avatar.startsWith('data:') ? data.avatar : `data:image/jpeg;base64,${data.avatar}`}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
-          : `<div class="user-avatar" style="width:42px;height:42px;font-size:14px;flex-shrink:0;">${data.name.slice(0,2).toUpperCase()}</div>`;
-
-        resultEl.style.display = 'block';
-        resultEl.innerHTML = `
-          <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--green-bg);border:1px solid rgba(34,211,160,0.25);border-radius:var(--radius-sm);">
-            ${avatarHTML}
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:600;color:var(--text);font-size:14px;">${data.name}</div>
-              <div style="font-size:12px;color:var(--green);margin-top:1px;">✓ Usuario verificado</div>
-            </div>
-            <button type="button" class="btn btn-primary btn-sm" id="addLinkedBtn" style="flex-shrink:0;">
-              ${icons.plus} Agregar
-            </button>
-          </div>
-        `;
-
-        resultEl.querySelector('#addLinkedBtn').onclick = async () => {
-          const addBtn = resultEl.querySelector('#addLinkedBtn');
-          addBtn.disabled = true;
-          addBtn.innerHTML = `<span class="spinner"></span>`;
-          try {
-            await clientService.addByPublicId(linkedPublicId);
-            toast.success('Cliente agregado');
-            if (closeRef) closeRef();
-            onSave();
-          } catch (err) {
-            toast.error(err.message);
-            addBtn.disabled = false;
-            addBtn.innerHTML = `${icons.plus} Agregar`;
-          }
-        };
-
-      } catch (err) {
-        linkedPublicId = null;
-        resultEl.style.display = 'block';
-        resultEl.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--red-bg);border-radius:var(--radius-sm);">
-            <svg width="14" height="14" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
-            <span style="color:var(--red);font-size:13px;">${err.message}</span>
-          </div>`;
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `${icons.search} Buscar`;
-      }
-    };
-
-    // Guardar referencia a close después de crear el modal
-    setTimeout(() => { closeRef = modalClose; }, 0);
-  }
-
-  // ══════════════════════════════════════════
-  // MODO 2: Formulario manual
-  // ══════════════════════════════════════════
+  content.style.gap = '12px';
 
   // Avatar picker
   const avatarRow = document.createElement('div');
-  avatarRow.style.cssText = 'display:flex;align-items:center;gap:14px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:14px;';
+  avatarRow.style.cssText = 'display:flex;align-items:center;gap:14px;margin-bottom:4px;';
 
   function avatarRowHTML() {
     return `
@@ -287,8 +187,8 @@ function clientModal(client, onSave) {
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;">Foto de perfil</div>
         <div style="display:flex;gap:8px;">
-          <button type="button" class="btn btn-secondary btn-sm" id="clientPickAvatar">Subir foto</button>
-          ${currentAvatar ? `<button type="button" class="btn btn-danger btn-sm" id="clientRemoveAvatar">Quitar</button>` : ''}
+          <button type="button" class="btn btn-secondary btn-sm" id="clientPickAvatar" style="flex:1;">Subir foto</button>
+          ${currentAvatar ? `<button type="button" class="btn btn-danger btn-sm" id="clientRemoveAvatar" style="flex:1;">Quitar</button>` : ''}
         </div>
       </div>
     `;
@@ -323,7 +223,123 @@ function clientModal(client, onSave) {
   formWrap.appendChild(inputGroup({ id: 'cPhone',   label: 'Telefono',                             icon: 'phone',    value: client?.phone   || '', placeholder: 'opcional' }));
   formWrap.appendChild(inputGroup({ id: 'cAddress', label: 'Direccion',                            icon: 'location', value: client?.address || '', placeholder: 'opcional' }));
 
-  content.appendChild(formWrap);
+  if (!isEdit) {
+    // Sección 1
+    const sec1 = document.createElement('div');
+    sec1.style.cssText = 'padding:14px;background:var(--green-bg);border:1px solid rgba(34,211,160,0.25);border-radius:var(--radius-sm);';    sec1.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;">
+          <span style="font-size:11px;font-weight:700;color:#fff;line-height:1;">1</span>
+        </div>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">Agregar con ID de cuenta</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:stretch;">
+        <input id="publicIdInput" class="input-field" placeholder="Ej: 482910" maxlength="6"
+          style="font-family:var(--mono);letter-spacing:0.08em;font-size:12px;font-weight:600;text-align:center;flex:1;padding:10px 12px;"/>
+        <button type="button" class="btn btn-secondary btn-sm" id="lookupBtn" style="white-space:nowrap;flex-shrink:0;">
+          ${icons.search} Buscar
+        </button>
+      </div>
+      <div id="lookupResult" style="margin-top:8px;display:none;"></div>
+    `;
+    content.appendChild(sec1);
+
+    // Divisor
+    const divisor = document.createElement('div');
+    divisor.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    divisor.innerHTML = `
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.08em;">O</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    `;
+    content.appendChild(divisor);
+
+    // Sección 2 con formulario dentro
+    const sec2 = document.createElement('div');
+    sec2.style.cssText = 'padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);';    sec2.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;">
+        <span style="font-size:11px;font-weight:700;color:#fff;line-height:1;">2</span>
+      </div>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">Crear cliente manualmente</span>
+      </div>
+    `;
+    sec2.appendChild(formWrap);
+    content.appendChild(sec2);
+
+    // Lógica búsqueda por ID
+    let linkedPublicId = null;
+
+    sec1.querySelector('#lookupBtn').onclick = async () => {
+      const pid = document.getElementById('publicIdInput').value.trim();
+      const resultEl = sec1.querySelector('#lookupResult');
+
+      if (!/^\d{6}$/.test(pid)) {
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--red-bg);border-radius:var(--radius-sm);">
+            <svg width="14" height="14" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+            <span style="color:var(--red);font-size:13px;">Ingresa 6 dígitos</span>
+          </div>`;
+        return;
+      }
+
+      const btn = sec1.querySelector('#lookupBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner spinner-dark"></span>`;
+
+      try {
+        const data = await clientService.lookupByPublicId(pid);
+        linkedPublicId = pid;
+
+        const avatarHTML = data.avatar
+  ? `<img src="${data.avatar.startsWith('data:') ? data.avatar : `data:image/jpeg;base64,${data.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+  : `<div class="user-avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0;">${data.name.slice(0,2).toUpperCase()}</div>`;
+
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px;background:var(--surface);border:1px solid rgba(34,211,160,0.25);border-radius:var(--radius-sm);margin-top:8px;text-align:center;">
+      ${avatarHTML}
+      <span style="font-weight:600;color:var(--text);font-size:12px;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.name}</span>
+      <button type="button" class="btn btn-primary btn-sm" id="addLinkedBtn" style="width:100%;">
+        ${icons.plus} Agregar
+      </button>
+    </div>
+  `;
+
+        resultEl.querySelector('#addLinkedBtn').onclick = async () => {
+          const addBtn = resultEl.querySelector('#addLinkedBtn');
+          addBtn.disabled = true;
+          addBtn.innerHTML = `<span class="spinner"></span>`;
+          try {
+            await clientService.addByPublicId(linkedPublicId);
+            toast.success('Cliente agregado');
+            modalClose();
+            onSave();
+          } catch (err) {
+            toast.error(err.message);
+            addBtn.disabled = false;
+            addBtn.innerHTML = `${icons.plus} Agregar`;
+          }
+        };
+
+      } catch (err) {
+        linkedPublicId = null;
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--red-bg);border-radius:var(--radius-sm);">
+            <svg width="14" height="14" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>
+            <span style="color:var(--red);font-size:13px;">${err.message}</span>
+          </div>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `${icons.search} Buscar`;
+      }
+    };
+
+  } else {
+    content.appendChild(formWrap);
+  }
 
   // Footer
   const footer = document.createElement('div');
