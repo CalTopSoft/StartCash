@@ -1,4 +1,6 @@
+/*const HEALTH_URL = 'http://localhost:3000/api/health';*/
 const HEALTH_URL = 'https://startcashback.onrender.com/api/health';
+
 const MAX_WAIT_MS = 1 * 60 * 1000;
 const POLL_MS = 3000;
 
@@ -19,7 +21,7 @@ export async function renderWakeUp(onReady) {
     <div style="text-align:center;max-width:360px;width:100%;">
 
       <div style="
-        width:64px;height:64px;
+        width:72px;height:72px;
         background:var(--accent);
         border-radius:18px;
         display:flex;
@@ -28,10 +30,7 @@ export async function renderWakeUp(onReady) {
         margin:0 auto 20px;
         box-shadow:0 0 32px var(--accent-glow);
       ">
-        <svg width="28" height="28" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
-          <rect x="1" y="4" width="22" height="16" rx="2"/>
-          <line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
+        <img src="src/assets/icons/logo.png" alt="logo" style="width:44px;height:44px;object-fit:contain;"/>
       </div>
 
       <div style="font-size:24px;font-weight:700;color:var(--text);margin-bottom:6px;">
