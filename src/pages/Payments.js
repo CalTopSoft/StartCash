@@ -50,26 +50,26 @@ async function renderPaymentsPage(container, loans) {
 
     <!-- Stats compactas -->
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
-        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalAmount)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Todos los prestamos</div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Este mes</div>
-        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalThisMonth)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${thisMonth.length} pagos en ${now.toLocaleString('es', {month:'long'})}</div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Transacciones</div>
-        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${allPaymentsData.length}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Total registradas</div>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Con pagos</div>
-        <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${loans.filter(l => l.amountPaid > 0).length}<span style="font-size:11px;color:var(--text3);font-weight:400;"> / ${loans.length}</span></div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Prestamos activos</div>
-      </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalAmount)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">Todos los prestamos</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Este mes</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalThisMonth)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${thisMonth.length} pagos en ${now.toLocaleString('es', {month:'long'})}</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Transacciones</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${allPaymentsData.length}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">Total registradas</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Con pagos</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${loans.filter(l => l.amountPaid > 0).length}<span style="font-size:11px;color:var(--text3);font-weight:400;"> / ${loans.length}</span></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">Prestamos activos</div>
+    </div>
     </div>
 
     <!-- Buscador -->
