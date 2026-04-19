@@ -349,10 +349,14 @@
   .form-grid-2 {
     grid-template-columns: 1fr !important;
   }
+  
   .input-field {
     padding: 10px 12px !important;
-    font-size: 13px !important;
   }
+
+  .input-wrapper.has-icon .input-field {
+      padding-left: 44px !important;
+    }
 
   .input-label {
     font-size: 12px !important;
