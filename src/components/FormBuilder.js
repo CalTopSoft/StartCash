@@ -11,6 +11,7 @@ export function inputGroup({ id, label, type = 'text', placeholder = '', require
       ${hasIcon ? `<span class="input-icon">${icons[icon] || ''}</span>` : ''}
       <input
         class="input-field"
+        style="${hasIcon ? 'padding-left:36px;' : ''}"
         id="${id}"
         name="${id}"
         type="${type}"
