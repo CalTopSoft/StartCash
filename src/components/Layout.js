@@ -48,7 +48,7 @@ export function createLayout(activePage, pageTitle) {
         <div class="user-info" id="sidebarUserInfo">
           ${renderSidebarUser(user)}
         </div>
-        <button class="btn btn-ghost btn-sm w-full" id="logoutBtn" style="justify-content:flex-start;gap:8px;">
+        <button class="btn btn-ghost btn-sm w-full" id="logoutBtn" style="justify-content:flex-start;gap:8px;color:var(--red);margin-top:4px;">
           ${icons.logout} Cerrar sesion
         </button>
       </div>
