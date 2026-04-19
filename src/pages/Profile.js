@@ -131,6 +131,8 @@ export async function renderProfile() {
           <div class="form-grid" style="gap:16px;">
             <div id="nameField"></div>
             <div id="emailField"></div>
+            <div id="phoneField"></div>
+            <div id="addressField"></div>
           </div>
 
           <div style="margin-top:16px;padding:11px 14px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);display:flex;align-items:center;gap:10px;">
@@ -152,6 +154,12 @@ export async function renderProfile() {
     );
     container.querySelector('#emailField').replaceWith(
       inputGroup({ id: 'pEmail', label: 'Correo electronico', type: 'email', icon: 'mail', value: user.email || '', required: true })
+    );
+    container.querySelector('#phoneField').replaceWith(
+      inputGroup({ id: 'pPhone', label: 'Telefono', icon: 'phone', value: user.phone || '', placeholder: 'opcional' })
+    );
+    container.querySelector('#addressField').replaceWith(
+      inputGroup({ id: 'pAddress', label: 'Direccion', icon: 'location', value: user.address || '', placeholder: 'opcional' })
     );
 
     // Hover avatar
@@ -216,8 +224,10 @@ export async function renderProfile() {
     // Guardar cambios
     container.querySelector('#saveProfileBtn').onclick = async () => {
       clearFieldErrors('pName', 'pEmail');
-      const name  = document.getElementById('pName').value.trim();
-      const email = document.getElementById('pEmail').value.trim();
+      const name    = document.getElementById('pName').value.trim();
+      const email   = document.getElementById('pEmail').value.trim();
+      const phone   = document.getElementById('pPhone').value.trim();
+      const address = document.getElementById('pAddress').value.trim();
       let valid = true;
       if (!name || name.length < 2) { showFieldError('pName', 'Minimo 2 caracteres'); valid = false; }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('pEmail', 'Correo invalido'); valid = false; }
@@ -228,10 +238,11 @@ export async function renderProfile() {
       btn.innerHTML = `<span class="spinner"></span> Guardando...`;
 
       try {
-        const updated = await api.put('/auth/profile', { name, email });
+        console.log('Guardando:', { name, email, phone, address });
+        const updated = await api.put('/auth/profile', { name, email, phone, address });
         if (avatarChanged) await api.put('/auth/avatar', { avatar: pendingAvatar });
-
-        user = { ...user, name: updated.name, email: updated.email, avatar: pendingAvatar };
+        
+        user = { ...user, name: updated.name, email: updated.email, phone: updated.phone, address: updated.address, avatar: pendingAvatar };
         avatarChanged = false;
         authService._saveUser(user);
         window.dispatchEvent(new CustomEvent('userUpdated'));
