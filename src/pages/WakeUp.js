@@ -1,5 +1,5 @@
-const HEALTH_URL = 'http://localhost:3000/api/health';
-/*const HEALTH_URL = 'https://startcashback.onrender.com/api/health';*/
+/*const HEALTH_URL = 'http://localhost:3000/api/health';*/
+const HEALTH_URL = 'https://startcashback.onrender.com/api/health';
 
 const MAX_WAIT_MS = 1 * 60 * 1000;
 const POLL_MS = 3000;
