@@ -1146,9 +1146,10 @@ function injectAuthStyles() {
 
 @media (max-width: 480px) {
   .ar-wrap {
-    padding: 18px 20px 28px; /* Ajuste extra para subir el bloque en pantallas pequeñas */
+    padding: 0px 20px 28px; /* Ajuste extra para subir el bloque en pantallas pequeñas */
+    margin-top: -10px;
   }
-
+  
   .ar-card {
     padding: 28px 20px;
     border-radius: 20px;
