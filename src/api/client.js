@@ -1,7 +1,7 @@
 import { toast } from '../components/Toast.js';
 
-/*export const API_BASE_URL = 'http://localhost:3000/api';*/
-export const API_BASE_URL = 'https://startcashback.onrender.com/api';
+/*export const API_BASE_URL = 'https://startcashback.onrender.com/api';*/
+export const API_BASE_URL = 'http://localhost:3000/api';
 export const API_HEALTH_URL = `${API_BASE_URL}/health`;
 
 let sessionExpiredHandled = false;
@@ -68,7 +68,10 @@ async function request(path, options = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const msg = data.mensaje || data.message || 'Error en la solicitud';
+    let msg = data.mensaje || data.message || 'Error en la solicitud';
+    if (msg === 'Validation failed' && Array.isArray(data.errors) && data.errors.length > 0) {
+      msg = data.errors[0]?.message || msg;
+    }
     if (token && isAuthTokenError(res.status, msg)) {
       resetSessionAndGoToLogin();
     }
