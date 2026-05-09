@@ -6,8 +6,10 @@ import { inputGroup, showFieldError, clearFieldErrors } from '../components/Form
 import { icons } from '../components/Icons.js';
 import { toast } from '../components/Toast.js';
 import { formatCurrency, formatDate, loanStatusClass, loanStatusLabel, calcProgress, isOverdue } from '../utility/helpers.js';
+import { FIELD_LIMITS, validateNumberRange } from '../utility/validation.js';
+import { openReceiptExportModal } from '../utility/receipts/loanReceipt.js';
 
-export async function renderLoanDetail(loanId) {
+export async function renderLoanDetail(loanId, backTarget = null) {
   document.body.innerHTML = '';
   const container = createLayout('loans', 'Detalle de prestamo');
   container.innerHTML = `<div style="text-align:center;padding:60px 0;"><span class="spinner spinner-dark"></span></div>`;
@@ -17,13 +19,13 @@ export async function renderLoanDetail(loanId) {
       loanService.getOne(loanId),
       paymentService.listByLoan(loanId),
     ]);
-    renderDetail(container, loan, payments, loanId);
+    renderDetail(container, loan, payments, loanId, backTarget);
   } catch (err) {
     container.innerHTML = `<div class="alert alert-error">${icons.alert} ${err.message}</div>`;
   }
 }
 
-function renderDetail(container, loan, payments, loanId) {
+function renderDetail(container, loan, payments, loanId, backTarget = null) {
   const progress = calcProgress(loan.amountPaid, loan.total);
   const overdue = isOverdue(loan.dueDate, loan.status);
   const remaining = loan.total - loan.amountPaid;
@@ -59,9 +61,10 @@ function renderDetail(container, loan, payments, loanId) {
     <!-- Info préstamo -->
     <div class="card" style="margin-bottom:12px;padding:14px;">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Informacion del prestamo</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">Informacion</div>
 <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="btn btn-primary btn-sm" id="addPaymentBtn" style="font-size:10px;padding:6px 10px;" ${loan.status === 'PAID' ? 'disabled' : ''}>${icons.plus} Registrar Pago</button>
+          <button class="btn btn-sm" id="addPaymentBtn" style="font-size:10px;padding:6px 10px;background:var(--green-strong);color:#fff;border:none;" ${loan.status === 'PAID' ? 'disabled' : ''}>${icons.plus} Registrar Pago</button>
+          <button id="receiptBtn" title="Comprobante" style="width:32px;height:32px;background:none;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);">${icons.download}</button>
           <button id="editLoanBtn" title="Editar" style="width:32px;height:32px;background:none;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);">${icons.edit}</button>
         </div>      </div>
 
@@ -105,7 +108,12 @@ ${loan.description ? `
   renderPayments(container.querySelector('#paymentsContent'), payments);
 
   container.querySelector('#backBtn').onclick = () => {
-    window.location.hash = '#loans';
+    if (typeof backTarget === 'string' && backTarget.startsWith('client:')) {
+      const clientId = backTarget.split(':')[1];
+      window.location.hash = `#clients?id=${clientId}`;
+    } else {
+      window.location.hash = '#loans';
+    }
     window.dispatchEvent(new CustomEvent('navigate'));
   };
   container.querySelector('#addPaymentBtn')?.addEventListener('click', () => {
@@ -114,7 +122,7 @@ ${loan.description ? `
         loanService.getOne(loanId),
         paymentService.listByLoan(loanId),
       ]);
-      renderDetail(container, updatedLoan, updatedPayments, loanId);
+      renderDetail(container, updatedLoan, updatedPayments, loanId, backTarget);
     });
   });
   container.querySelector('#editLoanBtn').onclick = async () => {
@@ -125,8 +133,11 @@ ${loan.description ? `
         loanService.getOne(loanId),
         paymentService.listByLoan(loanId),
       ]);
-      renderDetail(container, updatedLoan, updatedPayments, loanId);
+      renderDetail(container, updatedLoan, updatedPayments, loanId, backTarget);
     });
+  };
+  container.querySelector('#receiptBtn').onclick = () => {
+    openReceiptExportModal({ loan, payments });
   };
 
   container.querySelector('#clientInfoBtn').onclick = () => {
@@ -153,7 +164,7 @@ ${loan.description ? `
           loanService.getOne(loanId),
           paymentService.listByLoan(loanId),
         ]);
-        renderDetail(container, updatedLoan, updatedPayments, loanId);
+        renderDetail(container, updatedLoan, updatedPayments, loanId, backTarget);
       } catch (err) {
         toast.error(err.message);
       }
@@ -264,7 +275,16 @@ function paymentModal(loan, onSave) {
     </div>
   `;
   content.appendChild(info);
-  content.appendChild(inputGroup({ id: 'pAmount', label: 'Monto del pago ($)', type: 'number', required: true, min: 0.01, step: '0.01', placeholder: '0.00' }));
+  content.appendChild(inputGroup({
+    id: 'pAmount',
+    label: 'Monto del pago ($)',
+    type: 'number',
+    required: true,
+    min: FIELD_LIMITS.money.min,
+    max: FIELD_LIMITS.money.max,
+    step: '0.01',
+    placeholder: '0.00',
+  }));
   content.appendChild(inputGroup({ id: 'pDate', label: 'Fecha del pago', type: 'date', value: new Date().toISOString().split('T')[0] }));
 
   const footer = document.createElement('div');
@@ -287,7 +307,8 @@ function paymentModal(loan, onSave) {
     clearFieldErrors('pAmount');
     const amount = parseFloat(document.getElementById('pAmount').value);
     const date = document.getElementById('pDate').value;
-    if (isNaN(amount) || amount <= 0) { showFieldError('pAmount', 'Ingresa un monto valido'); return; }
+    const amountErr = validateNumberRange(amount, FIELD_LIMITS.money, 'Monto');
+    if (amountErr) { showFieldError('pAmount', amountErr); return; }
     if (amount > remaining + 0.01) { showFieldError('pAmount', `No puede superar el saldo (${formatCurrency(remaining)})`); return; }
 
     saveBtn.disabled = true;
@@ -296,10 +317,19 @@ function paymentModal(loan, onSave) {
     try {
       const data = { loanId: loan._id, amount };
       if (date) data.date = date;
-      await paymentService.create(data);
+      const created = await paymentService.create(data);
+      const [updatedLoan, updatedPayments] = await Promise.all([
+        loanService.getOne(loan._id),
+        paymentService.listByLoan(loan._id),
+      ]);
       toast.success('Pago registrado');
       close();
-      onSave();
+      await Promise.resolve(onSave?.());
+      openReceiptExportModal({
+        loan: updatedLoan,
+        payments: updatedPayments,
+        paymentId: created?._id || null,
+      });
     } catch (err) {
       toast.error(err.message);
       saveBtn.disabled = false;

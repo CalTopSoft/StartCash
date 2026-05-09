@@ -5,6 +5,7 @@ import { inputGroup, showFieldError, clearFieldErrors } from '../components/Form
 import { icons } from '../components/Icons.js';
 import { toast } from '../components/Toast.js';
 import { validateEmail, debounce } from '../utility/helpers.js';
+import { FIELD_LIMITS, validateOptionalText, validateRequiredText } from '../utility/validation.js';
 
 let allClients = [];
 
@@ -35,7 +36,7 @@ function renderClientsList(container, clients) {
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
         <div class="search-bar" style="max-width:100%;">
           ${icons.search}
-          <input type="text" placeholder="Buscar por nombre, correo o telefono..." id="clientSearch"/>
+          <input type="text" placeholder="Buscar por nombre, correo o telefono..." id="clientSearch" maxlength="${FIELD_LIMITS.search.max}"/>
         </div>
         </div>
       <div class="table-wrapper">
@@ -46,13 +47,15 @@ function renderClientsList(container, clients) {
           <th class="col-desktop">Correo</th>
           <th class="col-desktop">Telefono</th>
           <th class="col-desktop">Direccion</th>
-          <th class="col-desktop">Editar</th>
-          <th class="col-desktop">Borrar</th>
+          <th class="col-desktop" style="text-align:center;width:72px;">Ver</th>
+          <th class="col-desktop" style="text-align:center;width:72px;">Editar</th>
+          <th class="col-desktop" style="text-align:center;width:72px;">Borrar</th>
           <th class="col-mobile" style="width:100%;">
-            <div style="display:flex;align-items:center;">
-              <span style="flex:1;">Clientes</span>
-              <span style="width:60px;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text3);">EDITAR</span>
-              <span style="width:60px;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text3);">BORRAR</span>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 30px 30px 30px;align-items:center;column-gap:8px;">
+              <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Clientes</span>
+              <span style="text-align:center;font-size:8px;font-weight:600;letter-spacing:0.03em;color:var(--text3);transform:translateX(-8px);">Ver</span>
+              <span style="text-align:center;font-size:8px;font-weight:600;letter-spacing:0.03em;color:var(--text3);transform:translateX(-8px);">Editar</span>
+              <span style="text-align:center;font-size:8px;font-weight:600;letter-spacing:0.03em;color:var(--text3);transform:translateX(-8px);">Borrar</span>
             </div>
           </th>
         </tr>
@@ -85,40 +88,48 @@ function renderClientsList(container, clients) {
         ? `<img src="${client.avatar.startsWith('data:') ? client.avatar : `data:image/jpeg;base64,${client.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
         : `<div class="user-avatar" style="width:32px;height:32px;font-size:12px;">${client.name.slice(0,2).toUpperCase()}</div>`;
     
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <!-- DESKTOP: tabla normal -->
-        <td class="col-desktop">
-          <div style="display:flex;align-items:center;gap:10px;">
-            ${avatarHTML}
-            <span class="td-primary">${client.name}</span>
-          </div>
-        </td>
-        <td class="col-desktop">${client.email || '—'}</td>
-        <td class="col-desktop">${client.phone || '—'}</td>
-        <td class="col-desktop">${client.address || '—'}</td>
-        <td class="col-desktop" style="text-align:center;">
-          <button class="btn btn-ghost btn-icon" data-action="edit" data-id="${client._id}" title="Editar">${icons.edit}</button>
-        </td>
-        <td class="col-desktop" style="text-align:center;">
-          <button class="btn btn-ghost btn-icon" style="color:var(--red);" data-action="delete" data-id="${client._id}" title="Eliminar">${icons.trash}</button>
-        </td>
-    
-        <!-- MOBILE: fila única con todo -->
-        <td class="col-mobile" colspan="5">
-          <div style="display:flex;align-items:center;">
-            ${avatarHTML}
-            <span class="td-primary" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:10px;">${shortName}</span>
-        <button data-action="edit" data-id="${client._id}" style="width:60px;height:34px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);transition:background 200ms;">
-          ${icons.edit}
-        </button>
-        <button data-action="delete" data-id="${client._id}" style="width:60px;height:34px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--red);border-radius:var(--radius-sm);transition:background 200ms;">
-          ${icons.trash}
-        </button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <!-- DESKTOP -->
+          <td class="col-desktop">
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${avatarHTML}
+              <span class="td-primary">${client.name}</span>
+            </div>
+          </td>
+          <td class="col-desktop">${client.email || '—'}</td>
+          <td class="col-desktop">${client.phone || '—'}</td>
+          <td class="col-desktop">${client.address || '—'}</td>
+          <td class="col-desktop" style="text-align:center;">
+            <button class="btn btn-ghost btn-icon" data-action="view" data-id="${client._id}" title="Ver">${icons.eye}</button>
+          </td>
+          <td class="col-desktop" style="text-align:center;">
+            <button class="btn btn-ghost btn-icon" data-action="edit" data-id="${client._id}" title="Editar">${icons.edit}</button>
+          </td>
+          <td class="col-desktop" style="text-align:center;">
+            <button class="btn btn-ghost btn-icon" style="color:var(--red);" data-action="delete" data-id="${client._id}" title="Eliminar">${icons.trash}</button>
+          </td>
+        
+          <!-- MOBILE -->
+          <td class="col-mobile" colspan="7">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 30px 30px 30px;align-items:center;column-gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                ${avatarHTML}
+                <span class="td-primary" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;">${shortName}</span>
+              </div>
+              <button data-action="view" data-id="${client._id}" style="width:30px;height:30px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);transition:background 200ms;padding:0;transform:translateX(-8px);">
+                ${icons.eye}
+              </button>
+              <button data-action="edit" data-id="${client._id}" style="width:30px;height:30px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);border-radius:var(--radius-sm);transition:background 200ms;padding:0;transform:translateX(-8px);">
+                ${icons.edit}
+              </button>
+              <button data-action="delete" data-id="${client._id}" style="width:30px;height:30px;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--red);border-radius:var(--radius-sm);transition:background 200ms;padding:0;transform:translateX(-8px);">
+                ${icons.trash}
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
     });
   }
 
@@ -148,6 +159,12 @@ function renderClientsList(container, clients) {
     if (!btn) return;
     const id = btn.dataset.id;
     const client = allClients.find(c => c._id === id);
+  
+    if (btn.dataset.action === 'view') {
+      window.location.hash = `#clients?id=${id}`;
+      window.dispatchEvent(new CustomEvent('navigate'));
+      return;
+    }
     if (btn.dataset.action === 'edit') openModal(client);
     if (btn.dataset.action === 'delete') {
       confirmDialog(`¿Eliminar al cliente <strong>${client.name}</strong>? Esta accion no se puede deshacer.`, async () => {
@@ -218,10 +235,42 @@ function clientModal(client, onSave) {
   formWrap.className = 'form-grid';
   formWrap.style.gap = '14px';
   formWrap.appendChild(avatarRow);
-  formWrap.appendChild(inputGroup({ id: 'cName',    label: 'Nombre completo',      required: true, icon: 'user',     value: client?.name    || '', placeholder: 'Nombre del cliente' }));
-  formWrap.appendChild(inputGroup({ id: 'cEmail',   label: 'Correo electronico',   type: 'email',  icon: 'mail',     value: client?.email   || '', placeholder: 'opcional' }));
-  formWrap.appendChild(inputGroup({ id: 'cPhone',   label: 'Telefono',                             icon: 'phone',    value: client?.phone   || '', placeholder: 'opcional' }));
-  formWrap.appendChild(inputGroup({ id: 'cAddress', label: 'Direccion',                            icon: 'location', value: client?.address || '', placeholder: 'opcional' }));
+  formWrap.appendChild(inputGroup({
+    id: 'cName',
+    label: 'Nombre completo',
+    required: true,
+    icon: 'user',
+    value: client?.name || '',
+    placeholder: 'Nombre del cliente',
+    minLength: FIELD_LIMITS.name.min,
+    maxLength: FIELD_LIMITS.name.max,
+  }));
+  formWrap.appendChild(inputGroup({
+    id: 'cEmail',
+    label: 'Correo electronico',
+    type: 'email',
+    icon: 'mail',
+    value: client?.email || '',
+    placeholder: 'opcional',
+    maxLength: FIELD_LIMITS.email.max,
+  }));
+  formWrap.appendChild(inputGroup({
+    id: 'cPhone',
+    label: 'Telefono',
+    icon: 'phone',
+    value: client?.phone || '',
+    placeholder: 'opcional',
+    maxLength: FIELD_LIMITS.phone.max,
+    inputMode: 'tel',
+  }));
+  formWrap.appendChild(inputGroup({
+    id: 'cAddress',
+    label: 'Direccion',
+    icon: 'location',
+    value: client?.address || '',
+    placeholder: 'opcional',
+    maxLength: FIELD_LIMITS.address.max,
+  }));
 
   if (!isEdit) {
     // Sección 1
@@ -367,15 +416,21 @@ function clientModal(client, onSave) {
   cancelBtn.onclick = modalClose;
 
   saveBtn.onclick = async () => {
-    clearFieldErrors('cName', 'cEmail');
+    clearFieldErrors('cName', 'cEmail', 'cPhone', 'cAddress');
     const name    = document.getElementById('cName').value.trim();
     const email   = document.getElementById('cEmail').value.trim();
     const phone   = document.getElementById('cPhone').value.trim();
     const address = document.getElementById('cAddress').value.trim();
     let valid = true;
 
-    if (!name || name.length < 2) { showFieldError('cName', 'El nombre debe tener al menos 2 caracteres'); valid = false; }
+    const nameErr = validateRequiredText(name, FIELD_LIMITS.name, 'El nombre');
+    if (nameErr) { showFieldError('cName', nameErr); valid = false; }
     if (email && !validateEmail(email)) { showFieldError('cEmail', 'Correo invalido'); valid = false; }
+    else if (email && email.length > FIELD_LIMITS.email.max) { showFieldError('cEmail', `Correo demasiado largo (max ${FIELD_LIMITS.email.max})`); valid = false; }
+    const phoneErr = validateOptionalText(phone, FIELD_LIMITS.phone, 'El telefono');
+    if (phoneErr) { showFieldError('cPhone', phoneErr); valid = false; }
+    const addressErr = validateOptionalText(address, FIELD_LIMITS.address, 'La direccion');
+    if (addressErr) { showFieldError('cAddress', addressErr); valid = false; }
     if (!valid) return;
 
     saveBtn.disabled = true;

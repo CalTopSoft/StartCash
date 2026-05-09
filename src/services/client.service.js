@@ -8,4 +8,4 @@ export const clientService = {
   delete: (id) => api.delete(`/clients/${id}`),
   lookupByPublicId: (publicId) => api.get(`/clients/lookup/${publicId}`),
   addByPublicId: (publicId) => api.post('/clients/by-public-id', { publicId }),
-};
+};  

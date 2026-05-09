@@ -3,6 +3,14 @@ import { debtService } from '../services/debt.service.js';
 import { icons } from '../components/Icons.js';
 import { formatCurrency, formatDate, calcProgress, isOverdue } from '../utility/helpers.js';
 
+const STATUS_FILTERS = [
+  { key: 'all', label: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>` },
+  { key: 'PARTIALLY_PAID', label: 'Parcial' },
+  { key: 'PENDING', label: 'Pendiente' },
+  { key: 'PAID', label: 'Pagado' },
+  { key: 'overdue', label: 'Vencidos' },
+];
+
 export async function renderDebts() {
   document.body.innerHTML = '';
   const container = createLayout('debts', 'Mis deudas');
@@ -17,6 +25,10 @@ export async function renderDebts() {
 }
 
 async function renderDebtsPage(container, debts) {
+  let activeFilter = 'all';
+  const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const focusDebtId = params.get('id');
+  let focusDone = false;
   const totalDeuda = debts.reduce((s, d) => s + d.total, 0);
   const totalPagado = debts.reduce((s, d) => s + d.amountPaid, 0);
   const totalPendiente = debts.reduce((s, d) => s + (d.total - d.amountPaid), 0);
@@ -38,7 +50,7 @@ async function renderDebtsPage(container, debts) {
 
     ${vencidas.length > 0 ? `
       <div class="alert alert-error" style="margin-bottom:16px;">
-        ${icons.alert}
+        <span style="color:var(--yellow);display:inline-flex;align-items:center;flex-shrink:0;">${icons.alert}</span>
         <div><strong>${vencidas.length} ${vencidas.length === 1 ? 'préstamo vencido.' : 'préstamos vencidos.'}</strong> Contacta a tu prestamista para regularizar.</div>
       </div>
     ` : ''}
@@ -63,8 +75,32 @@ async function renderDebtsPage(container, debts) {
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Vencidos</div>
         <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${vencidas.length > 0 ? 'var(--red)' : 'var(--green)'};">${vencidas.length}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">${vencidas.length === 0 ? 'Todo al día ✓' : 'Requieren atención'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          ${vencidas.length === 0 ? `${icons.check} <span>Todo al dia</span>` : 'Requieren atencion'}
+        </div>
       </div>
+    </div>
+
+    <div id="debtFilterBar" style="display:flex;gap:6px;flex-wrap:nowrap;margin-bottom:14px;align-items:center;overflow:auto;">
+      ${STATUS_FILTERS.map((f) => `
+        <button data-filter="${f.key}" style="
+          padding:6px 12px;
+          border-radius:20px;
+          font-size:12px;
+          font-weight:600;
+          border:1.5px solid var(--border);
+          background:var(--surface);
+          color:var(--text2);
+          cursor:pointer;
+          transition:all 200ms;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          min-width:34px;
+          height:34px;
+          white-space:nowrap;
+        ">${f.label}</button>
+      `).join('')}
     </div>
 
     <!-- Lista de deudas -->
@@ -79,15 +115,26 @@ async function renderDebtsPage(container, debts) {
 
   const listEl = container.querySelector('#debtsList');
   const emptyEl = container.querySelector('#emptyDebts');
+  const filterBar = container.querySelector('#debtFilterBar');
 
   if (!debts.length) {
     emptyEl.style.display = 'block';
     return;
   }
 
-  // Separar activos y pagados
-  const activos = debts.filter(d => d.status !== 'PAID');
-  const pagados = debts.filter(d => d.status === 'PAID');
+  function filterDebtsData(data, filterKey) {
+    if (filterKey === 'all') return [...data];
+    if (filterKey === 'overdue') return data.filter((d) => isOverdue(d.dueDate, d.status));
+    return data.filter((d) => d.status === filterKey);
+  }
+
+  function paintFilterBar() {
+    filterBar.querySelectorAll('[data-filter]').forEach((btn) => {
+      const isActive = btn.dataset.filter === activeFilter;
+      btn.style.background = isActive ? 'var(--accent)' : 'var(--surface)';
+      btn.style.color = isActive ? '#fff' : 'var(--text2)';
+    });
+  }
 
   function renderDebtCard(debt) {
     const progress = calcProgress(debt.amountPaid, debt.total);
@@ -107,6 +154,7 @@ async function renderDebtsPage(container, debts) {
 
     const card = document.createElement('div');
     card.className = 'card';
+    card.dataset.debtId = debt._id;
     card.style.marginBottom = '12px';
     card.style.position = 'relative';
     card.style.overflow = 'hidden';
@@ -126,7 +174,7 @@ async function renderDebtsPage(container, debts) {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
           <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${st.bg};color:${st.color};">${st.label}</span>
-          ${overdue && debt.status !== 'PAID' ? `<span style="font-size:10px;color:var(--red);font-weight:600;">⚠ Vencido</span>` : ''}
+          ${overdue && debt.status !== 'PAID' ? `<span style="font-size:10px;color:var(--red);font-weight:600;display:inline-flex;align-items:center;gap:4px;">${icons.alert} Vencido</span>` : ''}
         </div>
       </div>
 
@@ -213,23 +261,48 @@ async function renderDebtsPage(container, debts) {
     return card;
   }
 
-  // Render activos
-  if (activos.length) {
+  function renderDebtList() {
+    listEl.innerHTML = '';
+    const filtered = filterDebtsData(debts, activeFilter)
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+    if (!filtered.length) {
+      emptyEl.style.display = 'block';
+      emptyEl.querySelector('.empty-state-title').textContent = 'Sin resultados para este filtro';
+      emptyEl.querySelector('.empty-state-desc').textContent = 'No hay deudas que coincidan ahora';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
     const sectionLabel = document.createElement('div');
     sectionLabel.style.cssText = 'font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:10px;';
-    sectionLabel.textContent = `Activos (${activos.length})`;
+    sectionLabel.textContent = `Resultados (${filtered.length})`;
     listEl.appendChild(sectionLabel);
-    activos.forEach(d => listEl.appendChild(renderDebtCard(d)));
+    filtered.forEach((d) => listEl.appendChild(renderDebtCard(d)));
+
+    if (focusDebtId && !focusDone) {
+      const target = listEl.querySelector(`[data-debt-id="${focusDebtId}"]`);
+      if (target) {
+        focusDone = true;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.boxShadow = '0 0 0 2px rgba(108,99,255,0.45)';
+        setTimeout(() => {
+          target.style.boxShadow = '';
+        }, 1800);
+      }
+    }
   }
 
-  // Render pagados
-  if (pagados.length) {
-    const sectionLabel = document.createElement('div');
-    sectionLabel.style.cssText = 'font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin:16px 0 10px;';
-    sectionLabel.textContent = `Pagados (${pagados.length})`;
-    listEl.appendChild(sectionLabel);
-    pagados.forEach(d => listEl.appendChild(renderDebtCard(d)));
-  }
+  filterBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
+    paintFilterBar();
+    renderDebtList();
+  });
+
+  paintFilterBar();
+  renderDebtList();
 }
 
 function renderPaymentHistory(el, payments) {

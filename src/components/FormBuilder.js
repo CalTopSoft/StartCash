@@ -1,6 +1,21 @@
 import { icons } from './Icons.js';
 
-export function inputGroup({ id, label, type = 'text', placeholder = '', required = false, icon = null, value = '', min, step }) {
+export function inputGroup({
+  id,
+  label,
+  type = 'text',
+  placeholder = '',
+  required = false,
+  icon = null,
+  value = '',
+  min,
+  max,
+  step,
+  minLength,
+  maxLength,
+  pattern,
+  inputMode,
+}) {
   const wrapper = document.createElement('div');
   wrapper.className = 'input-group';
 
@@ -19,7 +34,12 @@ export function inputGroup({ id, label, type = 'text', placeholder = '', require
         value="${value}"
         ${required ? 'required' : ''}
         ${min !== undefined ? `min="${min}"` : ''}
+        ${max !== undefined ? `max="${max}"` : ''}
         ${step !== undefined ? `step="${step}"` : ''}
+        ${minLength !== undefined ? `minlength="${minLength}"` : ''}
+        ${maxLength !== undefined ? `maxlength="${maxLength}"` : ''}
+        ${pattern ? `pattern="${pattern}"` : ''}
+        ${inputMode ? `inputmode="${inputMode}"` : ''}
         autocomplete="off"
       />
       ${type === 'password' ? `<button type="button" class="input-toggle" data-for="${id}" tabindex="-1">${icons.eye}</button>` : ''}

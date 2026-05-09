@@ -2,11 +2,6 @@ export function formatCurrency(amount) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount || 0);
 }
 
-export function formatDate(date) {
-  if (!date) return '—';
-  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date));
-}
-
 export function formatDateInput(date) {
   if (!date) return '';
   return new Date(date).toISOString().split('T')[0];
@@ -31,9 +26,28 @@ export function calcProgress(amountPaid, total) {
   return Math.min(100, Math.round((amountPaid / total) * 100));
 }
 
+// Parsea "YYYY-MM-DD" como fecha LOCAL, no UTC
+function parseDateLocal(value) {
+  if (!value) return new Date(NaN);
+  const s = typeof value === 'string' ? value : new Date(value).toISOString();
+  // Si viene como ISO "2025-05-08T..." toma solo la parte de fecha
+  const datePart = s.slice(0, 10); // "YYYY-MM-DD"
+  const [y, m, d] = datePart.split('-').map(Number);
+  return new Date(y, m - 1, d); // medianoche hora LOCAL
+}
+
+export function formatDate(date) {
+  if (!date) return '—';
+  const d = parseDateLocal(date);
+  return new Intl.DateTimeFormat('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+}
+
 export function isOverdue(dueDate, status) {
   if (status === 'PAID') return false;
-  return new Date(dueDate) < new Date();
+  const due = parseDateLocal(dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // medianoche local de hoy
+  return due < today; // vence hoy → NO está vencido
 }
 
 export function validateEmail(email) {

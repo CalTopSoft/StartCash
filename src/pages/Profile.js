@@ -6,6 +6,7 @@ import { icons } from '../components/Icons.js';
 import { toast } from '../components/Toast.js';
 import { api } from '../api/client.js';
 import { pickAvatar } from '../utility/avatar.js';
+import { FIELD_LIMITS, validateOptionalText, validateRequiredText } from '../utility/validation.js';
 
 export async function renderProfile() {
   document.body.innerHTML = '';
@@ -150,16 +151,47 @@ export async function renderProfile() {
 
     // Inputs
     container.querySelector('#nameField').replaceWith(
-      inputGroup({ id: 'pName', label: 'Nombre completo', icon: 'user', value: user.name || '', required: true })
+      inputGroup({
+        id: 'pName',
+        label: 'Nombre completo',
+        icon: 'user',
+        value: user.name || '',
+        required: true,
+        minLength: FIELD_LIMITS.name.min,
+        maxLength: FIELD_LIMITS.name.max,
+      })
     );
     container.querySelector('#emailField').replaceWith(
-      inputGroup({ id: 'pEmail', label: 'Correo electronico', type: 'email', icon: 'mail', value: user.email || '', required: true })
+      inputGroup({
+        id: 'pEmail',
+        label: 'Correo electronico',
+        type: 'email',
+        icon: 'mail',
+        value: user.email || '',
+        required: true,
+        maxLength: FIELD_LIMITS.email.max,
+      })
     );
     container.querySelector('#phoneField').replaceWith(
-      inputGroup({ id: 'pPhone', label: 'Telefono', icon: 'phone', value: user.phone || '', placeholder: 'opcional' })
+      inputGroup({
+        id: 'pPhone',
+        label: 'Telefono',
+        icon: 'phone',
+        value: user.phone || '',
+        placeholder: 'opcional',
+        maxLength: FIELD_LIMITS.phone.max,
+        inputMode: 'tel',
+      })
     );
     container.querySelector('#addressField').replaceWith(
-      inputGroup({ id: 'pAddress', label: 'Direccion', icon: 'location', value: user.address || '', placeholder: 'opcional' })
+      inputGroup({
+        id: 'pAddress',
+        label: 'Direccion',
+        icon: 'location',
+        value: user.address || '',
+        placeholder: 'opcional',
+        maxLength: FIELD_LIMITS.address.max,
+      })
     );
 
     // Hover avatar
@@ -223,14 +255,20 @@ export async function renderProfile() {
 
     // Guardar cambios
     container.querySelector('#saveProfileBtn').onclick = async () => {
-      clearFieldErrors('pName', 'pEmail');
+      clearFieldErrors('pName', 'pEmail', 'pPhone', 'pAddress');
       const name    = document.getElementById('pName').value.trim();
       const email   = document.getElementById('pEmail').value.trim();
       const phone   = document.getElementById('pPhone').value.trim();
       const address = document.getElementById('pAddress').value.trim();
       let valid = true;
-      if (!name || name.length < 2) { showFieldError('pName', 'Minimo 2 caracteres'); valid = false; }
+      const nameErr = validateRequiredText(name, FIELD_LIMITS.name, 'El nombre');
+      if (nameErr) { showFieldError('pName', nameErr); valid = false; }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('pEmail', 'Correo invalido'); valid = false; }
+      else if (email.length > FIELD_LIMITS.email.max) { showFieldError('pEmail', `Correo demasiado largo (max ${FIELD_LIMITS.email.max})`); valid = false; }
+      const phoneErr = validateOptionalText(phone, FIELD_LIMITS.phone, 'El telefono');
+      if (phoneErr) { showFieldError('pPhone', phoneErr); valid = false; }
+      const addressErr = validateOptionalText(address, FIELD_LIMITS.address, 'La direccion');
+      if (addressErr) { showFieldError('pAddress', addressErr); valid = false; }
       if (!valid) return;
 
       const btn = container.querySelector('#saveProfileBtn');
@@ -270,9 +308,34 @@ function openPasswordModal() {
   const content = document.createElement('div');
   content.className = 'form-grid';
   content.style.gap = '16px';
-  content.appendChild(inputGroup({ id: 'pCurPass',  label: 'Contraseña actual',         type: 'password', icon: 'lock', required: true }));
-  content.appendChild(inputGroup({ id: 'pNewPass',  label: 'Nueva contraseña',           type: 'password', icon: 'lock', required: true, placeholder: 'Minimo 6 caracteres' }));
-  content.appendChild(inputGroup({ id: 'pConfPass', label: 'Confirmar nueva contraseña', type: 'password', icon: 'lock', required: true }));
+  content.appendChild(inputGroup({
+    id: 'pCurPass',
+    label: 'Contrasena actual',
+    type: 'password',
+    icon: 'lock',
+    required: true,
+    minLength: FIELD_LIMITS.password.min,
+    maxLength: FIELD_LIMITS.password.max,
+  }));
+  content.appendChild(inputGroup({
+    id: 'pNewPass',
+    label: 'Nueva contrasena',
+    type: 'password',
+    icon: 'lock',
+    required: true,
+    placeholder: 'Minimo 6 caracteres',
+    minLength: FIELD_LIMITS.password.min,
+    maxLength: FIELD_LIMITS.password.max,
+  }));
+  content.appendChild(inputGroup({
+    id: 'pConfPass',
+    label: 'Confirmar nueva contrasena',
+    type: 'password',
+    icon: 'lock',
+    required: true,
+    minLength: FIELD_LIMITS.password.min,
+    maxLength: FIELD_LIMITS.password.max,
+  }));
 
   const footer = document.createElement('div');
   footer.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;';
@@ -299,8 +362,10 @@ function openPasswordModal() {
     const newP  = document.getElementById('pNewPass').value;
     const confP = document.getElementById('pConfPass').value;
     let valid = true;
-    if (!curP) { showFieldError('pCurPass', 'Ingresa tu contraseña actual'); valid = false; }
-    if (!newP || newP.length < 6) { showFieldError('pNewPass', 'Minimo 6 caracteres'); valid = false; }
+    const curErr = validateRequiredText(curP, FIELD_LIMITS.password, 'La contrasena actual');
+    if (curErr) { showFieldError('pCurPass', curErr); valid = false; }
+    const newErr = validateRequiredText(newP, FIELD_LIMITS.password, 'La nueva contrasena');
+    if (newErr) { showFieldError('pNewPass', newErr); valid = false; }
     if (newP !== confP) { showFieldError('pConfPass', 'Las contraseñas no coinciden'); valid = false; }
     if (!valid) return;
 

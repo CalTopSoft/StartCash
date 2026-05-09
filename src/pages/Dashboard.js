@@ -28,6 +28,7 @@ export async function renderDashboard() {
     const totalPendiente  = myDebts.reduce((s, d) => s + (d.total - d.amountPaid), 0);
     const deudasActivas   = myDebts.filter(d => d.status !== 'PAID');
     const deudasVencidas  = myDebts.filter(d => isOverdue(d.dueDate, d.status));
+    const dueSoonDebts    = getDueSoonDebts(myDebts, 7);
 
     container.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
@@ -39,15 +40,17 @@ export async function renderDashboard() {
 
       ${overdueLoans.length > 0 ? `
         <div class="alert alert-error" style="margin-bottom:12px;">
-          ${icons.alert}
-          <div><strong>${overdueLoans.length} prestamo(s) vencido(s).</strong> Revisa tu lista de prestamos.</div>
+          <span style="color:var(--yellow);display:inline-flex;align-items:center;flex-shrink:0;">${icons.alert}</span>
+          <div><strong>${overdueLoans.length} ${overdueLoans.length === 1 ? 'prestamo vencido' : 'prestamos vencidos'}.</strong> Revisa tu lista de prestamos.</div>
         </div>
       ` : ''}
 
+      ${renderDueSoonDebtAlerts(dueSoonDebts)}
+
       ${deudasVencidas.length > 0 ? `
         <div class="alert alert-error" style="margin-bottom:12px;border-left-color:var(--yellow);">
-          ${icons.alert}
-          <div><strong>${deudasVencidas.length} deuda(s) vencida(s).</strong> Contacta a tu prestamista.</div>
+          <span style="color:var(--yellow);display:inline-flex;align-items:center;flex-shrink:0;">${icons.alert}</span>
+          <div><strong>${deudasVencidas.length} ${deudasVencidas.length === 1 ? 'deuda vencida' : 'deudas vencidas'}.</strong> Contacta a tu prestamista.</div>
         </div>
       ` : ''}
 
@@ -88,10 +91,10 @@ export async function renderDashboard() {
               </div>
               <div>
                 <div style="font-size:13px;font-weight:700;color:var(--text);">Mis deudas</div>
-                <div style="font-size:10px;color:var(--text3);">${deudasActivas.length} activa(s) · ${myDebts.length} total</div>
+                <div style="font-size:10px;color:var(--text3);">${deudasActivas.length} ${deudasActivas.length === 1 ? 'activa' : 'activas'} · ${myDebts.length} total</div>
               </div>
             </div>
-            ${deudasVencidas.length > 0 ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);padding:3px 8px;border-radius:20px;">⚠ ${deudasVencidas.length} vencida(s)</span>` : ''}
+            ${deudasVencidas.length > 0 ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);padding:3px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;">${icons.alert} ${deudasVencidas.length} ${deudasVencidas.length === 1 ? 'vencida' : 'vencidas'}</span>` : ''}
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -138,7 +141,7 @@ ${d.lender?.avatar
             }).join('')}
             ${deudasActivas.length === 0 ? `
               <div style="text-align:center;padding:16px;color:var(--text3);font-size:12px;">
-                Sin deudas activas ✓
+                <span style="display:inline-flex;align-items:center;justify-content:center;gap:4px;">${icons.check} Sin deudas activas</span>
               </div>
             ` : ''}
           </div>
@@ -234,8 +237,79 @@ ${d.lender?.avatar
     container.querySelector('#goLoans').onclick   = () => { window.location.hash = '#loans';   window.dispatchEvent(new CustomEvent('navigate')); };
     container.querySelector('#goClients').onclick  = () => { window.location.hash = '#clients'; window.dispatchEvent(new CustomEvent('navigate')); };
     container.querySelector('#goDebts')?.addEventListener('click', () => { window.location.hash = '#debts'; window.dispatchEvent(new CustomEvent('navigate')); });
+    container.querySelector('#goDebtsSoon')?.addEventListener('click', () => { window.location.hash = '#debts'; window.dispatchEvent(new CustomEvent('navigate')); });
+    container.querySelectorAll('[data-go-debt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-go-debt');
+        if (!id) return;
+        window.location.hash = `#debts?id=${id}`;
+        window.dispatchEvent(new CustomEvent('navigate'));
+      });
+    });
 
   } catch (err) {
     container.innerHTML = `<div class="alert alert-error">${icons.alert} Error al cargar datos: ${err.message}</div>`;
   }
+}
+
+function getDueSoonDebts(debts, days = 7) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const max = new Date(today);
+  max.setDate(max.getDate() + days);
+
+  return debts
+    .filter((debt) => debt.status !== 'PAID')
+    .filter((debt) => {
+      const due = new Date(debt.dueDate);
+      if (Number.isNaN(due.getTime())) return false;
+      return due >= today && due <= max;
+    })
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+}
+
+function renderDueSoonDebtAlerts(dueSoonDebts) {
+  if (!dueSoonDebts.length) return '';
+
+  if (dueSoonDebts.length > 2) {
+    return `
+      <div style="margin-bottom:12px;padding:10px 12px;background:var(--yellow-bg);border:1px solid rgba(255,209,102,0.32);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <span style="color:var(--yellow);display:inline-flex;align-items:center;flex-shrink:0;">${icons.alert}</span>
+          <div style="font-size:12px;color:var(--text2);line-height:1.35;">
+            <strong style="color:var(--yellow);">${dueSoonDebts.length} deudas por vencer</strong> en los proximos 7 dias.
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="goDebtsSoon" style="font-size:11px;white-space:nowrap;border:1px solid rgba(255,209,102,0.35);background:rgba(255,209,102,0.08);color:var(--yellow);">
+          ${icons.arrowRight} Ir
+        </button>
+      </div>
+    `;
+  }
+
+  const cols = dueSoonDebts.length === 1 ? '1fr' : '1fr 1fr';
+  return `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;margin-bottom:12px;">
+      ${dueSoonDebts.map((debt) => {
+        const dueDate = formatDate(debt.dueDate).replace(/\s\d{4}$/, '');
+        const pending = Math.max(0, (debt.total || 0) - (debt.amountPaid || 0));
+        return `
+          <div style="padding:10px 11px;background:var(--yellow-bg);border:1px solid rgba(255,209,102,0.32);border-radius:var(--radius-sm);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                <span style="color:var(--yellow);display:inline-flex;align-items:center;flex-shrink:0;">${icons.alert}</span>
+                <span style="font-size:11px;font-weight:700;color:var(--yellow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Deuda por vencer</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-go-debt="${debt._id}" style="font-size:10px;padding:5px 8px;white-space:nowrap;border:1px solid rgba(255,209,102,0.35);background:rgba(255,209,102,0.08);color:var(--yellow);">
+                Ir
+              </button>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${debt.lender?.name || 'Prestamista'}</div>
+            <div style="font-size:10px;color:var(--text2);margin-top:2px;">Vence: ${dueDate}</div>
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--yellow);margin-top:4px;">Pendiente: ${formatCurrency(pending)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }

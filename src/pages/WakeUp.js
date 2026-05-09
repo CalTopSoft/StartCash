@@ -1,5 +1,4 @@
-/*const HEALTH_URL = 'http://localhost:3000/api/health';*/
-const HEALTH_URL = 'https://startcashback.onrender.com/api/health';
+import { API_HEALTH_URL } from '../api/client.js';
 
 const MAX_WAIT_MS = 1 * 60 * 1000;
 const POLL_MS = 3000;
@@ -109,7 +108,7 @@ export async function renderWakeUp(onReady) {
 
     while (Date.now() - start < MAX_WAIT_MS) {
       try {
-        const res = await fetch(HEALTH_URL, {
+        const res = await fetch(API_HEALTH_URL, {
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
@@ -117,7 +116,7 @@ export async function renderWakeUp(onReady) {
         if (res.ok) {
           clearInterval(dotInterval);
 
-          // 🔥 Mantiene loader + añade check
+          // Mantiene loader y añade check
           statusEl.style.color = 'var(--green)';
           statusEl.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
