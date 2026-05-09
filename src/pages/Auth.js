@@ -1053,7 +1053,7 @@ function injectAuthStyles() {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 40px 24px; /* Padding reducido */
+    padding: 24px 24px 32px; /* Menos espacio arriba para centrar mejor en móvil */
     position: relative;
     z-index: 10;
   }
@@ -1146,7 +1146,7 @@ function injectAuthStyles() {
 
 @media (max-width: 480px) {
   .ar-wrap {
-    padding: 32px 20px; /* Padding más reducido en pantallas muy pequeñas */
+    padding: 18px 20px 28px; /* Ajuste extra para subir el bloque en pantallas pequeñas */
   }
 
   .ar-card {
