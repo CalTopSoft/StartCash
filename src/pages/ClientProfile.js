@@ -4,8 +4,8 @@ import { loanService } from '../services/loan.service.js';
 import { paymentService } from '../services/payment.service.js';
 import { createLoanCard } from '../components/LoanCard.js';
 import { createStatsGrid } from '../components/StatsGrid.js';
-import { icons } from '../components/Icons.js';
-import { formatCurrency, formatDate, isOverdue, loanStatusLabel } from '../utility/helpers.js';
+import { icons, icon } from '../components/Icons.js';
+import { formatCurrency, formatDate, isOverdue, loanStatusLabel, loanTypeLabel, loanTypeIcon, loanTypeColor } from '../utility/helpers.js';
 
 const LOAN_FILTERS = [
   { key: 'all', label: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>` },
@@ -13,6 +13,13 @@ const LOAN_FILTERS = [
   { key: 'PENDING', label: 'Pendiente' },
   { key: 'PAID', label: 'Pagado' },
   { key: 'overdue', label: 'Vencidos' },
+];
+
+const TYPE_FILTERS = [
+  { key: 'all', label: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>` },
+  { key: 'NORMAL', label: 'Normal' },
+  { key: 'FIXED_INTEREST', label: 'Interés fijo' },
+  { key: 'INSTALLMENTS', label: 'Diferidos' },
 ];
 
 export async function renderClientProfile(clientId) {
@@ -35,6 +42,33 @@ export async function renderClientProfile(clientId) {
 }
 
 function renderProfile(container, client, loans, payments, clientId) {
+  // Calcular métricas por tipo de préstamo
+  const tipos = {
+    NORMAL: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+    FIXED_INTEREST: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+    INSTALLMENTS: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+  };
+
+  loans.forEach(loan => {
+    const loanType = loan.loanType || 'NORMAL';
+    const capital = loanType === 'FIXED_INTEREST' 
+      ? (loan.capitalOriginal ?? loan.amount ?? 0)
+      : loan.amount ?? 0;
+    const interes = loanType === 'FIXED_INTEREST'
+      ? (loan.interesesGenerados ?? 0)
+      : loan.interest ?? 0;
+    const pagado = loanType === 'FIXED_INTEREST'
+      ? (loan.totalPagado ?? 0)
+      : loan.amountPaid ?? 0;
+
+    if (tipos[loanType]) {
+      tipos[loanType].count++;
+      tipos[loanType].totalCapital += capital;
+      tipos[loanType].totalInteres += interes;
+      tipos[loanType].totalPagado += pagado;
+    }
+  });
+
   const totalCapital = loans.reduce((s, l) => s + l.amount, 0);
   const totalInteres = loans.reduce((s, l) => s + l.interest, 0);
   const totalCobrado = loans.reduce((s, l) => s + l.amountPaid, 0);
@@ -76,6 +110,27 @@ function renderProfile(container, client, loans, payments, clientId) {
 
     <div id="profileStatsMount"></div>
 
+    <!-- Stats por tipo de préstamo - 3 columnas -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+      ${[
+        { key: 'NORMAL', label: 'Normal', color: 'var(--green)', icon: 'money' },
+        { key: 'FIXED_INTEREST', label: 'Interés fijo', color: 'var(--yellow)', icon: 'clock' },
+        { key: 'INSTALLMENTS', label: 'Diferidos', color: 'var(--accent2)', icon: 'calendar' },
+      ].map(tipo => {
+        const data = tipos[tipo.key] || { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 };
+        return `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:2px;">
+              <span style="color:${tipo.color};">${icon(tipo.icon, 12)}</span>
+              <span style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.03em;">${tipo.label}</span>
+            </div>
+            <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${tipo.color};">${data.count}</div>
+            <div style="font-size:8px;color:var(--text3);">Cap: ${formatCurrency(data.totalCapital)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
     <div class="card" style="margin-bottom:16px;padding:9px 10px;text-align:center;background:var(--red-bg);border:1px solid rgba(255,107,107,0.28);">
       <div style="font-size:11px;color:var(--red);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">Deuda total restante</div>
       <div style="font-family:var(--mono);font-size:16px;font-weight:700;line-height:1.15;color:var(--red);">${formatCurrency(deudaTotal)}</div>
@@ -101,7 +156,10 @@ function renderProfile(container, client, loans, payments, clientId) {
         ` : ''}
       </div>
 
+      <!-- Filtros de estado -->
       ${renderFilterBar('general')}
+      <!-- Filtros por tipo -->
+      ${renderTypeFilterBar('generalType')}
       <div id="generalLoansTitle" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:10px;"></div>
       <div id="generalLoansMount"></div>
     </div>
@@ -116,6 +174,7 @@ function renderProfile(container, client, loans, payments, clientId) {
       </div>
       <div id="monthStatsMount"></div>
       ${renderFilterBar('month')}
+      ${renderTypeFilterBar('monthType')}
       <div id="monthLoansTitle" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:10px;"></div>
       <div id="monthLoansMount"></div>
       <div id="monthPaymentsMount"></div>
@@ -166,19 +225,27 @@ function renderProfile(container, client, loans, payments, clientId) {
   const viewMes = container.querySelector('#viewMes');
 
   let generalFilter = 'all';
+  let generalTypeFilter = 'all';
   let monthFilter = 'all';
+  let monthTypeFilter = 'all';
   let monthYear = new Date().getFullYear();
   let monthIndex = new Date().getMonth();
 
   const monthLabel = container.querySelector('#monthLabel');
+
+  const filterLoansByType = (loansData, typeKey) => {
+    if (typeKey === 'all') return loansData;
+    return loansData.filter(l => (l.loanType || 'NORMAL') === typeKey);
+  };
 
   const renderGeneralLoans = () => {
     const generalLoansMount = container.querySelector('#generalLoansMount');
     const generalTitle = container.querySelector('#generalLoansTitle');
     generalLoansMount.innerHTML = '';
 
-    const filtered = filterLoans(loans, generalFilter);
-    generalTitle.textContent = `${loanFilterTitle(generalFilter)} (${filtered.length})`;
+    let filtered = filterLoans(loans, generalFilter);
+    filtered = filterLoansByType(filtered, generalTypeFilter);
+    generalTitle.textContent = `${loanFilterTitle(generalFilter)}${generalTypeFilter !== 'all' ? ` · ${loanTypeLabel(generalTypeFilter)}` : ''} (${filtered.length})`;
 
     if (!filtered.length) {
       generalLoansMount.innerHTML = `
@@ -240,8 +307,9 @@ function renderProfile(container, client, loans, payments, clientId) {
     ]);
     monthStatsMount.appendChild(monthStats);
 
-    const filteredMonthLoans = filterLoans(prestamosDelMes, monthFilter);
-    monthLoansTitle.textContent = `${loanFilterTitle(monthFilter)} (${filteredMonthLoans.length})`;
+    let filteredMonthLoans = filterLoans(prestamosDelMes, monthFilter);
+    filteredMonthLoans = filterLoansByType(filteredMonthLoans, monthTypeFilter);
+    monthLoansTitle.textContent = `${loanFilterTitle(monthFilter)}${monthTypeFilter !== 'all' ? ` · ${loanTypeLabel(monthTypeFilter)}` : ''} (${filteredMonthLoans.length})`;
 
     if (filteredMonthLoans.length) {
       filteredMonthLoans.forEach((loan) => {
@@ -300,6 +368,14 @@ function renderProfile(container, client, loans, payments, clientId) {
     });
   };
 
+  const refreshGeneralTypeFilterUI = () => {
+    bindTypeFilterBar(container.querySelector('#generalTypeFilterBar'), generalTypeFilter, (key) => {
+      generalTypeFilter = key;
+      refreshGeneralTypeFilterUI();
+      renderGeneralLoans();
+    });
+  };
+
   const refreshMonthFilterUI = () => {
     bindFilterBar(container.querySelector('#monthFilterBar'), monthFilter, (key) => {
       monthFilter = key;
@@ -308,8 +384,18 @@ function renderProfile(container, client, loans, payments, clientId) {
     });
   };
 
+  const refreshMonthTypeFilterUI = () => {
+    bindTypeFilterBar(container.querySelector('#monthTypeFilterBar'), monthTypeFilter, (key) => {
+      monthTypeFilter = key;
+      refreshMonthTypeFilterUI();
+      renderMonth();
+    });
+  };
+
   refreshGeneralFilterUI();
+  refreshGeneralTypeFilterUI();
   refreshMonthFilterUI();
+  refreshMonthTypeFilterUI();
 
   renderGeneralLoans();
 
@@ -349,9 +435,35 @@ function renderProfile(container, client, loans, payments, clientId) {
 
 function renderFilterBar(prefix) {
   return `
-    <div id="${prefix}FilterBar" style="display:flex;gap:6px;flex-wrap:nowrap;margin-bottom:16px;align-items:center;overflow:auto;">
+    <div id="${prefix}FilterBar" style="display:flex;gap:6px;flex-wrap:nowrap;margin-bottom:8px;align-items:center;overflow:auto;">
       ${LOAN_FILTERS.map((f) => `
         <button data-filter="${f.key}" style="
+          padding:6px 12px;
+          border-radius:20px;
+          font-size:12px;
+          font-weight:600;
+          border:1.5px solid var(--border);
+          background:var(--surface);
+          color:var(--text2);
+          cursor:pointer;
+          transition:all 200ms;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          min-width:34px;
+          height:34px;
+          white-space:nowrap;
+        ">${f.label}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderTypeFilterBar(prefix) {
+  return `
+    <div id="${prefix}FilterBar" style="display:flex;gap:6px;flex-wrap:nowrap;margin-bottom:16px;align-items:center;overflow:auto;">
+      ${TYPE_FILTERS.map((f) => `
+        <button data-type-filter="${f.key}" style="
           padding:6px 12px;
           border-radius:20px;
           font-size:12px;
@@ -382,12 +494,20 @@ function bindFilterBar(el, activeKey, onChange) {
   });
 }
 
+function bindTypeFilterBar(el, activeKey, onChange) {
+  el.querySelectorAll('[data-type-filter]').forEach((btn) => {
+    const isActive = btn.dataset.typeFilter === activeKey;
+    btn.style.background = isActive ? 'var(--accent)' : 'var(--surface)';
+    btn.style.color = isActive ? '#fff' : 'var(--text2)';
+    btn.onclick = () => onChange(btn.dataset.typeFilter);
+  });
+}
+
 function filterLoans(loans, filterKey) {
   let filtered;
   if (filterKey === 'all') filtered = [...loans];
   else if (filterKey === 'overdue') filtered = loans.filter((l) => isOverdue(l.dueDate, l.status));
   else filtered = loans.filter((l) => l.status === filterKey);
-
   return filtered.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 }
 

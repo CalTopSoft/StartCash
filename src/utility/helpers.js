@@ -4,7 +4,8 @@ export function formatCurrency(amount) {
 
 export function formatDateInput(date) {
   if (!date) return '';
-  return new Date(date).toISOString().split('T')[0];
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().split('T')[0];
 }
 
 export function getInitials(name = '') {
@@ -64,4 +65,30 @@ export function debounce(fn, delay) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), delay);
   };
+}
+export function loanTypeLabel(loanType) {
+  const map = {
+    NORMAL: 'Normal',
+    FIXED_INTEREST: 'Interés fijo',
+    INSTALLMENTS: 'Diferidos',
+  };
+  return map[loanType] || 'Normal';
+}
+
+export function loanTypeIcon(loanType) {
+  const map = {
+    NORMAL: 'money',
+    FIXED_INTEREST: 'clock',
+    INSTALLMENTS: 'calendar',
+  };
+  return map[loanType] || 'money';
+}
+ 
+export function loanTypeColor(loanType) {
+  const map = {
+    NORMAL: 'var(--green)',
+    FIXED_INTEREST: 'var(--yellow)',
+    INSTALLMENTS: 'var(--accent2)',
+  };
+  return map[loanType] || 'var(--green)';
 }

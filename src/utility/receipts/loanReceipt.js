@@ -1,7 +1,7 @@
 import { createModal } from '../../components/Modal.js';
 import { toast } from '../../components/Toast.js';
 import { authService } from '../../services/auth.service.js';
-import { formatCurrency, formatDate, isOverdue, loanStatusLabel } from '../helpers.js';
+import { formatCurrency, formatDate, isOverdue, loanStatusLabel, loanTypeLabel, loanTypeIcon } from '../helpers.js';
 
 const APP_NAME = 'StarCash';
 const LOGO_SRC = 'src/assets/icons/logo.png';
@@ -133,6 +133,8 @@ function buildReceiptContext({ loan, payments, paymentId }) {
   const total      = Number(loan?.total || 0);
   const remaining  = Math.max(0, total - paidTotal);
   const paidPercent= total > 0 ? Math.round((paidTotal / total) * 100) : 0;
+  
+  const loanType = loan?.loanType || 'NORMAL';
 
   return {
     appName:     APP_NAME,
@@ -141,22 +143,57 @@ function buildReceiptContext({ loan, payments, paymentId }) {
     clientPhone: loan?.clientId?.phone || '',
     clientEmail: loan?.clientId?.email || '',
     loanId:      loan?._id   || '',
+    loanType,
     loanStatus:  loanStatusLabel(loan?.status || 'PENDING'),
     rawStatus:   loan?.status || 'PENDING',
     isOverdue:   isOverdue(loan?.dueDate, loan?.status),
     createdAt:   loan?.createdAt || '',
     dueDate:     loan?.dueDate   || '',
-    capital:     Number(loan?.amount   || 0),
+    capital:     Number(loan?.amount ?? loan?.capitalOriginal ?? 0),
     interest:    Number(loan?.interest || 0),
-    total,
+    total:       loanType === 'NORMAL' ? total : Number(loan?.totalAPagar ?? total),
     paidTotal,
-    remaining,
+    remaining:   loanType === 'FIXED_INTEREST'
+      ? Number(loan?.capitalPendiente || 0) + Number(loan?.interesesPendientes || 0)
+      : remaining,
     paidPercent: Math.min(100, Math.max(0, paidPercent)),
     description: loan?.description || '',
     payments:    ordered,
     lastPayment,
     generatedAt: new Date(),
+    typeExtra:   buildTypeExtra(loan, loanType),
+    // 👇 NUEVOS CAMPOS
+    loanTypeLabel: loanTypeLabel(loanType),
+    loanTypeIcon: loanTypeIcon(loanType),
+    totalCuotas: loanType === 'INSTALLMENTS' ? (loan.meses ?? 0) : 0,
+    cuotasPagadas: loanType === 'INSTALLMENTS' ? ordered.length : 0,
   };
+}
+
+function buildTypeExtra(loan, loanType) {
+  if (loanType === 'FIXED_INTEREST') {
+    return {
+      label: 'Interés fijo',
+      rows: [
+        ['Capital original', CURRENCY_FORMAT.format(Number(loan?.capitalOriginal || 0))],
+        ['Capital pendiente', CURRENCY_FORMAT.format(Number(loan?.capitalPendiente || 0))],
+        ['Interés mensual', CURRENCY_FORMAT.format(Number(loan?.interesMensual || 0))],
+        ['Intereses pendientes', CURRENCY_FORMAT.format(Number(loan?.interesesPendientes || 0))],
+      ],
+    };
+  }
+  if (loanType === 'INSTALLMENTS') {
+    return {
+      label: 'Diferidos',
+      rows: [
+        ['Cuota mensual', CURRENCY_FORMAT.format(Number(loan?.cuotaMensual || 0))],
+        ['Plazo', `${loan?.meses ?? '-'} meses`],
+        ['Interés', `${loan?.porcentajeInteres ?? 0}% / mes`],
+        ['1er pago', loan?.fechaPrimerPago ? DATE_FORMAT.format(new Date(loan.fechaPrimerPago)) : '--'],
+      ],
+    };
+  }
+  return null;
 }
 
 function normalizePayments(payments, total) {
@@ -324,7 +361,6 @@ function canvasToBlob(canvas, mime, quality) {
 async function drawLogo(ctx, x, y, size) {
   try {
     const img = await getLogoImage();
-    // draw rounded clip
     ctx.save();
     rrect(ctx, x, y, size, size, size * 0.22, null, null);
     ctx.clip();
@@ -357,7 +393,6 @@ function shortLoanCode(id) {
   return id.slice(-8).toUpperCase();
 }
 
-// status badge colors
 function statusColors(rawStatus) {
   if (rawStatus === 'PAID')    return { bg: C.greenLt,  text: C.green  };
   if (rawStatus === 'OVERDUE') return { bg: C.redLt,    text: C.red    };
@@ -365,18 +400,20 @@ function statusColors(rawStatus) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  IMAGE RECEIPT  (1080 × ~1700 — white professional)
+//  IMAGE RECEIPT  (1080 × dynamic — white professional)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function generateReceiptImageBlob(context) {
   const W  = 1080;
   const margin = 60;
   const inner  = W - margin * 2;
 
-  // ── estimate height ──
+  // Calcular altura dinámica
+  const extraRows = context.typeExtra ? 4 : 0;
+  const extraH = extraRows > 0 ? 120 : 0;
   const payCount   = context.payments.length || 1;
   const tableRowH  = 68;
   const tableH     = 52 + payCount * tableRowH;
-  const H = 320 + 280 + 220 + 120 + 56 + tableH + 180;
+  const H = 320 + 280 + 220 + 120 + 56 + tableH + 180 + extraH;
 
   const canvas = document.createElement('canvas');
   canvas.width  = W;
@@ -391,7 +428,6 @@ export async function generateReceiptImageBlob(context) {
   const hdrH = 200;
   rrect(ctx, 0, 0, W, hdrH, 0, C.header);
 
-  // subtle diagonal accent stripe
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(W - 300, 0);
@@ -403,10 +439,8 @@ export async function generateReceiptImageBlob(context) {
   ctx.fill();
   ctx.restore();
 
-  // logo
   await drawLogo(ctx, margin, 58, 72);
 
-  // app name + title
   ctx.fillStyle = '#FFFFFF';
   ctx.font      = `700 46px Georgia, serif`;
   ctx.fillText(context.appName, margin + 90, 106);
@@ -414,7 +448,6 @@ export async function generateReceiptImageBlob(context) {
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.fillText('Comprobante de Pago', margin + 90, 140);
 
-  // receipt number / date top-right
   ctx.textAlign = 'right';
   ctx.font      = `500 20px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.70)';
@@ -423,7 +456,7 @@ export async function generateReceiptImageBlob(context) {
   ctx.fillText(`Generado: ${DATE_FORMAT.format(context.generatedAt)} ${TIME_FORMAT.format(context.generatedAt)}`, W - margin, 112);
   ctx.textAlign = 'left';
 
-  // ── Status badge in header ──
+  // Status badge
   const sc = statusColors(context.rawStatus);
   const badgeW = 200, badgeH = 40;
   const badgeX = W - margin - badgeW;
@@ -433,14 +466,32 @@ export async function generateReceiptImageBlob(context) {
   ctx.font       = `700 19px sans-serif`;
   ctx.textAlign  = 'center';
   ctx.fillText(context.loanStatus.toUpperCase(), badgeX + badgeW / 2, badgeY + 26);
-  ctx.textAlign  = 'left';
+  
+  // 👇 AGREGAR TIPO DE PRÉSTAMO
+  if (context.loanType !== 'NORMAL') {
+    const typeColors = {
+      'FIXED_INTEREST': { bg: '#FFFAEB', text: '#F79009' },
+      'INSTALLMENTS': { bg: '#EEE9FF', text: '#5A47D6' },
+    };
+    const tc = typeColors[context.loanType] || { bg: '#F7F8FC', text: '#101828' };
+    const typeW = 160, typeH = 32;
+    const typeX = W - margin - typeW;
+    const typeY = badgeY + badgeH + 8;
+    rrect(ctx, typeX, typeY, typeW, typeH, 6, tc.bg);
+    ctx.fillStyle = tc.text;
+    ctx.font      = `600 14px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(context.loanTypeLabel.toUpperCase(), typeX + typeW / 2, typeY + 21);
+    ctx.textAlign = 'left';
+  }
+
+  ctx.textAlign = 'left';
 
   let y = hdrH + 36;
 
   // ══ CLIENT / LOAN INFO CARD ══════════════════════════════════════════════════
   rrect(ctx, margin, y, inner, 220, 14, C.surface, C.border, 1.5);
 
-  // left col — client
   ctx.fillStyle = C.text3;
   ctx.font      = `600 17px sans-serif`;
   ctx.fillText('CLIENTE', margin + 28, y + 46);
@@ -452,10 +503,8 @@ export async function generateReceiptImageBlob(context) {
   if (context.clientPhone) ctx.fillText(`Tel: ${context.clientPhone}`, margin + 28, y + 122);
   if (context.clientEmail) ctx.fillText(`Email: ${context.clientEmail}`, margin + 28, y + 150);
 
-  // vertical divider
   line(ctx, margin + inner / 2, y + 24, margin + inner / 2, y + 196, C.border, 1.5);
 
-  // right col — loan meta
   const rX = margin + inner / 2 + 28;
   ctx.fillStyle = C.text3;
   ctx.font      = `600 17px sans-serif`;
@@ -481,15 +530,39 @@ export async function generateReceiptImageBlob(context) {
 
   y += 220 + 28;
 
+  // ══ EXTRA BLOCK PARA FIXED_INTEREST / INSTALLMENTS ════════════════════════
+  if (context.typeExtra) {
+    const extra = context.typeExtra;
+    const exH = 110;
+    rrect(ctx, margin, y, inner, exH, 12, C.accentLt, C.accent, 1.5);
+    
+    ctx.fillStyle = C.accent;
+    ctx.font      = `700 16px sans-serif`;
+    ctx.fillText(extra.label.toUpperCase(), margin + 24, y + 30);
+    
+    const colW = (inner - 48) / extra.rows.length;
+    extra.rows.forEach(([label, value], i) => {
+      const cx = margin + 24 + i * colW;
+      ctx.fillStyle = C.text3;
+      ctx.font      = `400 14px sans-serif`;
+      ctx.fillText(label, cx, y + 62);
+      ctx.fillStyle = C.text;
+      ctx.font      = `700 18px sans-serif`;
+      ctx.fillText(trimText(ctx, value, colW - 16), cx, y + 88);
+    });
+    
+    y += exH + 28;
+  }
+
   // ══ AMOUNT CARDS ROW ════════════════════════════════════════════════════════
   const cardGap = 20;
   const cardW   = (inner - cardGap * 2) / 3;
   const cardH   = 150;
 
   const amountCards = [
-    { label: 'Capital',  value: CURRENCY_FORMAT.format(context.capital),  badge: null,      bg: C.surface,   vc: C.text   },
-    { label: 'Interés',  value: CURRENCY_FORMAT.format(context.interest), badge: null,      bg: C.yellowLt,  vc: C.yellow },
-    { label: 'Total',    value: CURRENCY_FORMAT.format(context.total),    badge: null,      bg: C.accentLt,  vc: C.accent },
+    { label: 'Capital',  value: CURRENCY_FORMAT.format(context.capital),  bg: C.surface,   vc: C.text   },
+    { label: 'Interés',  value: CURRENCY_FORMAT.format(context.interest), bg: C.yellowLt,  vc: C.yellow },
+    { label: 'Total',    value: CURRENCY_FORMAT.format(context.total),    bg: C.accentLt,  vc: C.accent },
   ];
   for (let i = 0; i < amountCards.length; i++) {
     const cx = margin + i * (cardW + cardGap);
@@ -507,10 +580,9 @@ export async function generateReceiptImageBlob(context) {
 
   y += cardH + cardGap;
 
-  // second row
   const statusCards = [
     { label: 'Pagado',   value: CURRENCY_FORMAT.format(context.paidTotal), bg: C.greenLt, vc: C.green  },
-    { label: 'Restante', value: CURRENCY_FORMAT.format(context.remaining),  bg: C.redLt,  vc: C.red    },
+    { label: 'Restante', value: CURRENCY_FORMAT.format(context.remaining),  bg: C.redLt,  vc: context.remaining > 0 ? C.red : C.green },
     { label: 'Progreso', value: `${context.paidPercent}%`,                  bg: C.surface, vc: C.purple },
   ];
   for (let i = 0; i < statusCards.length; i++) {
@@ -536,17 +608,23 @@ export async function generateReceiptImageBlob(context) {
   grad.addColorStop(1, C.purple);
   rrect(ctx, margin, y, fillW, pbH, 7, grad);
 
+  // 👇 MODIFICADO: muestra progreso de cuotas si es INSTALLMENTS
+  let progressLabel = `${context.paidPercent}% pagado`;
+  if (context.loanType === 'INSTALLMENTS' && context.totalCuotas > 0) {
+    const cuotasPagadas = Math.min(context.cuotasPagadas, context.totalCuotas);
+    progressLabel = `${cuotasPagadas}/${context.totalCuotas} cuotas · ${context.paidPercent}% pagado`;
+  }
+
   ctx.fillStyle = C.text2;
   ctx.font      = `600 17px sans-serif`;
   ctx.textAlign = 'right';
-  ctx.fillText(`${context.paidPercent}% pagado`, margin + inner, y - 10);
+  ctx.fillText(progressLabel, margin + inner, y - 10);
   ctx.textAlign = 'left';
 
   y += pbH + 36;
 
   // ══ PAYMENT TABLE ════════════════════════════════════════════════════════════
   rrect(ctx, margin, y, inner, 52, 0, C.header, null, 0);
-  // rounded top corners only
   ctx.save();
   const tblR = 10;
   ctx.beginPath();
@@ -592,7 +670,6 @@ export async function generateReceiptImageBlob(context) {
     ctx.fillStyle = isEven ? '#FFFFFF' : '#F4F6FB';
     ctx.fillRect(margin, rowY, inner, tableRowH);
 
-    // left border accent for last payment
     if (i === rows.length - 1) {
       ctx.fillStyle = C.accent;
       ctx.fillRect(margin, rowY, 4, tableRowH);
@@ -618,7 +695,6 @@ export async function generateReceiptImageBlob(context) {
     ctx.fillStyle = p.remaining > 0 ? C.red : C.green;
     ctx.fillText(CURRENCY_FORMAT.format(p.remaining), cols[5].x, textY);
 
-    // sub-note
     if (p.note) {
       ctx.fillStyle = C.text3;
       ctx.font      = `400 14px sans-serif`;
@@ -626,11 +702,9 @@ export async function generateReceiptImageBlob(context) {
     }
   }
 
-  // bottom border of table
   const tableBottom = y + rows.length * tableRowH;
   line(ctx, margin, tableBottom, margin + inner, tableBottom, C.border, 1.5);
 
-  // rounded bottom corners of table
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(margin, y);
@@ -692,21 +766,21 @@ export async function generateReceiptPdfBlob(context) {
   const margin = 56;
   const inner  = W - margin * 2;
 
+  const extraRows = context.typeExtra ? 4 : 0;
+  const extraH = extraRows > 0 ? 130 : 0;
   const payCount  = Math.max(1, context.payments.length);
   const rowH      = 52;
   const tableH    = 50 + payCount * rowH;
-  const H = Math.max(1400, 280 + 250 + 180 + 160 + tableH + 200 + 100);
+  const H = Math.max(1400, 280 + 250 + 180 + 160 + tableH + 200 + 100 + extraH);
 
   const canvas = document.createElement('canvas');
   canvas.width  = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Background
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Top accent strip (thin purple line) ──
   ctx.fillStyle = C.accent;
   ctx.fillRect(0, 0, W, 6);
 
@@ -714,7 +788,6 @@ export async function generateReceiptPdfBlob(context) {
   const hdrH = 220;
   rrect(ctx, 0, 6, W, hdrH, 0, C.header);
 
-  // diagonal accent
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(W - 280, 6);
@@ -726,10 +799,8 @@ export async function generateReceiptPdfBlob(context) {
   ctx.fill();
   ctx.restore();
 
-  // logo
   await drawLogo(ctx, margin, 38, 80);
 
-  // title
   ctx.fillStyle = '#FFFFFF';
   ctx.font      = `700 50px Georgia, serif`;
   ctx.fillText(`Recibo de Pago`, margin + 104, 96);
@@ -742,7 +813,6 @@ export async function generateReceiptPdfBlob(context) {
   ctx.fillText(`Cliente: ${context.clientName}`, margin + 104, 166);
   ctx.fillText(`Prestamista: ${context.lenderName}`, margin + 104, 196);
 
-  // right side — date + ID
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.font      = `600 20px sans-serif`;
@@ -750,13 +820,31 @@ export async function generateReceiptPdfBlob(context) {
   ctx.font      = `400 18px sans-serif`;
   ctx.fillText(`${DATE_FORMAT.format(context.generatedAt)} ${TIME_FORMAT.format(context.generatedAt)}`, W - margin, 96);
 
-  // status badge
+  // Status badge
   const sc = statusColors(context.rawStatus);
   const bW = 220, bH = 42;
   rrect(ctx, W - margin - bW, 120, bW, bH, 8, sc.bg);
   ctx.fillStyle = sc.text;
   ctx.font      = `700 19px sans-serif`;
   ctx.fillText(context.loanStatus.toUpperCase(), W - margin - bW / 2, 120 + 27);
+
+  // 👇 AGREGAR TIPO DE PRÉSTAMO DEBAJO DEL BADGE
+  if (context.loanType !== 'NORMAL') {
+    const typeColors = {
+      'FIXED_INTEREST': { bg: '#FFFAEB', text: '#F79009' },
+      'INSTALLMENTS': { bg: '#EEE9FF', text: '#5A47D6' },
+    };
+    const tc = typeColors[context.loanType] || { bg: '#F7F8FC', text: '#101828' };
+    const typeW = 180, typeH = 32;
+    const typeX = W - margin - typeW;
+    const typeY = 120 + bH + 10;
+    rrect(ctx, typeX, typeY, typeW, typeH, 6, tc.bg);
+    ctx.fillStyle = tc.text;
+    ctx.font      = `600 15px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(context.loanTypeLabel.toUpperCase(), typeX + typeW / 2, typeY + 21);
+    ctx.textAlign = 'left';
+  }
 
   ctx.textAlign = 'left';
 
@@ -766,7 +854,6 @@ export async function generateReceiptPdfBlob(context) {
   const blockW = (inner - 28) / 2;
   const blockH = 230;
 
-  // Left — Loan details
   rrect(ctx, margin, y, blockW, blockH, 12, '#F7F8FC', C.border, 1.5);
   ctx.fillStyle = C.accent;
   ctx.fillRect(margin, y, 4, blockH);
@@ -797,7 +884,6 @@ export async function generateReceiptPdfBlob(context) {
     ly += 28;
   }
 
-  // Right — Financial summary
   const rx = margin + blockW + 28;
   rrect(ctx, rx, y, blockW, blockH, 12, '#F7F8FC', C.border, 1.5);
   ctx.fillStyle = C.accent;
@@ -825,14 +911,37 @@ export async function generateReceiptPdfBlob(context) {
     ctx.textAlign = 'right';
     ctx.fillText(v, rx + blockW - 20, fy);
     ctx.textAlign = 'left';
-    // thin separator
     if (fy < y + blockH - 40) line(ctx, rx + 16, fy + 10, rx + blockW - 16, fy + 10, C.divider, 1);
     fy += 30;
   }
 
   y += blockH + 28;
 
-  // ── Progress bar (full width) ──
+  // ══ EXTRA BLOCK PARA FIXED_INTEREST / INSTALLMENTS ════════════════════════
+  if (context.typeExtra) {
+    const extra = context.typeExtra;
+    const exH = 110;
+    rrect(ctx, margin, y, inner, exH, 12, C.accentLt, C.accent, 1.5);
+    
+    ctx.fillStyle = C.accent;
+    ctx.font      = `700 16px sans-serif`;
+    ctx.fillText(extra.label.toUpperCase(), margin + 24, y + 30);
+    
+    const colW = (inner - 48) / extra.rows.length;
+    extra.rows.forEach(([label, value], i) => {
+      const cx = margin + 24 + i * colW;
+      ctx.fillStyle = C.text3;
+      ctx.font      = `400 14px sans-serif`;
+      ctx.fillText(label, cx, y + 62);
+      ctx.fillStyle = C.text;
+      ctx.font      = `700 18px sans-serif`;
+      ctx.fillText(trimText(ctx, value, colW - 16), cx, y + 88);
+    });
+    
+    y += exH + 28;
+  }
+
+  // ── Progress bar ──
   const pbH = 12;
   rrect(ctx, margin, y, inner, pbH, 6, C.border);
   const fillW = Math.max(pbH, Math.round((inner * context.paidPercent) / 100));
@@ -841,10 +950,18 @@ export async function generateReceiptPdfBlob(context) {
   pgrd.addColorStop(1, C.purple);
   rrect(ctx, margin, y, fillW, pbH, 6, pgrd);
 
+  // ── Etiqueta de progreso ──
+  let progressLabel = `${context.paidPercent}% pagado de ${CURRENCY_FORMAT.format(context.total)}`;
+
+  if (context.loanType === 'INSTALLMENTS' && context.totalCuotas > 0) {
+    const cuotasPagadas = Math.min(context.cuotasPagadas, context.totalCuotas);
+    progressLabel = `${cuotasPagadas}/${context.totalCuotas} cuotas`;
+  }
+
   ctx.fillStyle = C.text2;
   ctx.font      = `600 16px sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.fillText(`${context.paidPercent}% pagado de ${CURRENCY_FORMAT.format(context.total)}`, margin + inner, y - 10);
+  ctx.textAlign = 'right';  
+  ctx.fillText(progressLabel, margin + inner, y - 10);
   ctx.textAlign = 'left';
 
   y += pbH + 36;
@@ -855,7 +972,6 @@ export async function generateReceiptPdfBlob(context) {
   ctx.fillText('Historial completo de pagos', margin, y);
   y += 30;
 
-  // header row
   rrect(ctx, margin, y, inner, 50, 0, C.header);
   ctx.save();
   const tR = 10;
@@ -927,7 +1043,6 @@ export async function generateReceiptPdfBlob(context) {
     ctx.fillText(trimText(ctx, p.note || '—', cols[6].fw - 8), cols[6].x, ty);
   }
 
-  // table bottom line
   const tblBottom = y + rows.length * rowH;
   line(ctx, margin, tblBottom, margin + inner, tblBottom, C.border, 1.5);
 
@@ -982,7 +1097,6 @@ export async function generateReceiptPdfBlob(context) {
   line(ctx, margin, y, margin + inner, y, C.border, 1.5);
   y += 22;
 
-  // bottom accent bar
   ctx.fillStyle = C.accent;
   ctx.fillRect(margin, y, 40, 4);
 
@@ -1005,7 +1119,6 @@ export async function generateReceiptPdfBlob(context) {
   ctx.font      = `400 14px sans-serif`;
   ctx.fillText(`Cliente: ${context.clientName}  ·  Prestamista: ${context.lenderName}  ·  ID: ${shortLoanCode(context.loanId)}`, margin, y);
 
-  // Convert canvas to JPEG, then wrap in minimal PDF
   const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.94);
   return imageBlobToPdfBlob(jpegBlob, W, H);
 }

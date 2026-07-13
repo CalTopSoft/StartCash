@@ -2,8 +2,8 @@ import { createLayout } from '../components/Layout.js';
 import { loanService } from '../services/loan.service.js';
 import { clientService } from '../services/client.service.js';
 import { debtService } from '../services/debt.service.js';
-import { formatCurrency, formatDate, loanStatusClass, loanStatusLabel, isOverdue } from '../utility/helpers.js';
-import { icons } from '../components/Icons.js';
+import { formatCurrency, formatDate, loanStatusClass, loanStatusLabel, isOverdue, loanTypeLabel, loanTypeIcon, loanTypeColor } from '../utility/helpers.js';
+import { icons, icon } from '../components/Icons.js';
 
 export async function renderDashboard() {
   document.body.innerHTML = '';
@@ -17,10 +17,68 @@ export async function renderDashboard() {
       debtService.getMyDebts().catch(() => []),
     ]);
 
+    // Calcular métricas por tipo de préstamo
+    let totalLent = 0;
+    let totalInterest = 0;
+    let totalPaid = 0;
+    let totalActive = 0;
+    let totalDeudaReal = 0;
+
+    // Contadores por tipo
+    const tipos = {
+      NORMAL: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+      FIXED_INTEREST: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+      INSTALLMENTS: { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 },
+    };
+
+    loans.forEach(loan => {
+      const loanType = loan.loanType || 'NORMAL';
+      
+      // Capital prestado (siempre el capital original o amount)
+      const capital = loanType === 'FIXED_INTEREST' 
+        ? (loan.capitalOriginal ?? loan.amount ?? 0)
+        : loan.amount ?? 0;
+      totalLent += capital;
+
+      // Interés generado/pendiente
+      let interes = 0;
+      let pagado = 0;
+      if (loanType === 'FIXED_INTEREST') {
+        interes = (loan.interesesGenerados ?? 0);
+        pagado = (loan.totalPagado ?? 0);
+        if (loan.status !== 'PAID') {
+          totalDeudaReal += (loan.capitalPendiente ?? 0) + (loan.interesesPendientes ?? 0);
+        }
+      } else if (loanType === 'INSTALLMENTS') {
+        interes = (loan.interest ?? 0);
+        pagado = (loan.amountPaid ?? 0);
+        if (loan.status !== 'PAID') {
+          totalDeudaReal += (loan.totalAPagar ?? loan.total ?? 0) - (loan.amountPaid ?? 0);
+        }
+      } else {
+        // NORMAL
+        interes = (loan.interest ?? 0);
+        pagado = (loan.amountPaid ?? 0);
+        if (loan.status !== 'PAID') {
+          totalDeudaReal += (loan.total ?? 0) - (loan.amountPaid ?? 0);
+        }
+      }
+      
+      totalInterest += interes;
+      totalPaid += pagado;
+
+      // Acumular por tipo
+      if (tipos[loanType]) {
+        tipos[loanType].count++;
+        tipos[loanType].totalCapital += capital;
+        tipos[loanType].totalInteres += interes;
+        tipos[loanType].totalPagado += pagado;
+      }
+
+      if (loan.status !== 'PAID') totalActive++;
+    });
+
     const activeLoans   = loans.filter(l => l.status !== 'PAID');
-    const totalLent     = loans.reduce((s, l) => s + l.amount, 0);
-    const totalInterest = loans.reduce((s, l) => s + l.interest, 0);
-    const totalPaid     = loans.reduce((s, l) => s + l.amountPaid, 0);
     const overdueLoans  = loans.filter(l => isOverdue(l.dueDate, l.status));
 
     // Mis deudas
@@ -55,28 +113,54 @@ export async function renderDashboard() {
       ` : ''}
 
       <!-- Stats 2x2 de prestamos -->
-<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Capital prestado</div>
-    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalLent)}</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:2px;">${loans.length} prestamos</div>
-  </div>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ganancias</div>
-    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalInterest)}</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:2px;">En intereses</div>
-  </div>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
-    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPaid)}</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:2px;">Pagos recibidos</div>
-  </div>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Créditos activos</div>
-    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${activeLoans.length}</div>
-    <div style="font-size:10px;color:var(--text3);margin-top:2px;">${clients.length} clientes</div>
-  </div>
-</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Capital prestado</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent2);">${formatCurrency(totalLent)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${loans.length} prestamos</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ganancias</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalInterest)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">En intereses</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total cobrado</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);">${formatCurrency(totalPaid)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Pagos recibidos</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Créditos activos</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text);">${totalActive}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${clients.length} clientes</div>
+        </div>
+      </div>
+
+      <!-- Stats por tipo de préstamo - 3 columnas -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+        ${[
+          { key: 'NORMAL', label: 'Normal', color: 'var(--green)', icon: 'money' },
+          { key: 'FIXED_INTEREST', label: 'Interés fijo', color: 'var(--yellow)', icon: 'clock' },
+          { key: 'INSTALLMENTS', label: 'Diferidos', color: 'var(--accent2)', icon: 'calendar' },
+        ].map(tipo => {
+          const data = tipos[tipo.key] || { count: 0, totalCapital: 0, totalInteres: 0, totalPagado: 0 };
+          return `
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;">
+                <span style="color:${tipo.color};">${icon(tipo.icon, 14)}</span>
+                <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">${tipo.label}</span>
+              </div>
+              <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${tipo.color};">${data.count}</div>
+              <div style="font-size:9px;color:var(--text3);margin-top:2px;">
+                Capital: ${formatCurrency(data.totalCapital)}
+              </div>
+              <div style="font-size:8px;color:var(--text3);">
+                Interés: ${formatCurrency(data.totalInteres)} · Cobrado: ${formatCurrency(data.totalPagado)}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
 
       <!-- ═══ CARD COMBINADA: Mis deudas + Buzón ═══ -->
       ${myDebts.length > 0 ? `
@@ -124,10 +208,10 @@ export async function renderDashboard() {
               const fecha = formatDate(d.dueDate).replace(/\s\d{4}$/, '');
               return `
                 <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-${d.lender?.avatar
-  ? `<img src="${d.lender.avatar.startsWith('data:') ? d.lender.avatar : `data:image/jpeg;base64,${d.lender.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
-  : `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">${(d.lender?.name || '?').slice(0,2).toUpperCase()}</div>`
-}
+                  ${d.lender?.avatar
+                    ? `<img src="${d.lender.avatar.startsWith('data:') ? d.lender.avatar : `data:image/jpeg;base64,${d.lender.avatar}`}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+                    : `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">${(d.lender?.name || '?').slice(0,2).toUpperCase()}</div>`
+                  }
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.lender?.name || 'Prestamista'}</div>
                     <div style="font-size:10px;color:${overdue ? 'var(--red)' : 'var(--text3)'};margin-top:1px;">Vence: ${fecha}${overdue ? ' · Vencido' : ''}</div>
@@ -159,12 +243,12 @@ ${d.lender?.avatar
           <button class="btn btn-ghost btn-sm" id="goLoans">Ver todos</button>
         </div>
 
-<div style="display:grid;grid-template-columns:32px 1fr 70px 72px 50px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;">
-  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;grid-column:1/3;">Cliente</div>
-  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Total</div>
-  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Estado</div>
-  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Vence</div>
-</div>
+        <div style="display:grid;grid-template-columns:32px 1fr 70px 72px 50px;gap:6px;align-items:center;padding:0 0 8px 0;border-bottom:2px solid var(--border);margin-bottom:4px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;grid-column:1/3;">Cliente</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Total</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Estado</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Vence</div>
+        </div>
         <div id="recentLoans"></div>
         <div id="emptyLoans" style="display:none;text-align:center;padding:24px 0;color:var(--text3);font-size:13px;">Sin prestamos registrados</div>
       </div>
@@ -192,6 +276,15 @@ ${d.lender?.avatar
     } else {
       loans.slice(0, 5).forEach(loan => {
         const overdue = isOverdue(loan.dueDate, loan.status);
+        const loanType = loan.loanType || 'NORMAL';
+        
+        let totalMostrar = loan.total ?? 0;
+        if (loanType === 'FIXED_INTEREST') {
+          totalMostrar = (loan.capitalPendiente ?? 0) + (loan.interesesPendientes ?? 0);
+        } else if (loanType === 'INSTALLMENTS') {
+          totalMostrar = loan.totalAPagar ?? loan.total ?? 0;
+        }
+        
         const fecha = formatDate(loan.dueDate).replace(/\s\d{4}$/, '');
         const row = document.createElement('div');
         row.style.cssText = 'display:grid;grid-template-columns:32px 1fr 70px 72px 50px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';
@@ -199,10 +292,17 @@ ${d.lender?.avatar
         const avatarHtml = client?.avatar
           ? `<img src="${client.avatar.startsWith('data:') ? client.avatar : `data:image/jpeg;base64,${client.avatar}`}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
           : `<div style="width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;">${(client?.name || '?').slice(0,2).toUpperCase()}</div>`;
-          row.innerHTML = `
+        
+        const typeBadge = loanType !== 'NORMAL' 
+          ? `<span style="font-size:8px;font-weight:600;color:${loanTypeColor(loanType)};background:${loanTypeColor(loanType)}22;padding:1px 6px;border-radius:10px;border:1px solid ${loanTypeColor(loanType)}33;display:inline-block;margin-left:4px;">${loanTypeLabel(loanType)}</span>`
+          : '';
+        
+        row.innerHTML = `
           ${avatarHtml}
-          <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${client?.name || '—'}</div>
-          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;">${formatCurrency(loan.total)}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            ${client?.name || '—'} ${typeBadge}
+          </div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);white-space:nowrap;">${formatCurrency(totalMostrar)}</div>
           <div><span class="${loanStatusClass(loan.status)}" style="font-size:9px;padding:2px 6px;">${loanStatusLabel(loan.status)}</span></div>
           <div style="font-size:11px;color:${overdue ? 'var(--red)' : 'var(--text2)'};white-space:nowrap;">${fecha}</div>
         `;
